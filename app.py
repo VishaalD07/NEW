@@ -9,12 +9,14 @@ import folium
 from streamlit_folium import st_folium
 import statsmodels.api as sm
 
-NAVY = '#142D4E'
-TEAL = '#087F8C'
-RED = '#C83F53'
-PALETTE = [NAVY, TEAL, RED]
+NAVY = '#06264A'
+TEAL = '#079DB5'
+TURQUOISE = '#20B5C6'
+LAVENDER = '#8B83CF'
+RED = '#C84459'  # Reserved for fatal victims and adverse rate changes
+PALETTE = [NAVY, TEAL, LAVENDER]
 
-st.set_page_config(page_title='Cook County Health | Chicago Community Insights', page_icon='🏙️', layout='wide')
+st.set_page_config(page_title='Cook County Health | Chicago Community Insights', page_icon='🏥', layout='wide')
 ROOT=Path(__file__).parent/'data'
 @st.cache_data
 def load():
@@ -30,15 +32,28 @@ def load():
     return d,h,geo
 D,H,G=load()
 st.markdown('''<style>
-:root {--cch-navy:#142D4E;--cch-teal:#087F8C;--cch-red:#C83F53;}
+/* Cook County Health-inspired dashboard palette */
+:root {--cch-navy:#06264A;--cch-teal:#079DB5;--cch-turquoise:#20B5C6;--cch-lavender:#8B83CF;--cch-red:#C84459}
+html,body,[data-testid="stAppViewContainer"]{background:#F7FAFD;color:#112B46}
 .block-container{padding-top:1.2rem;max-width:1500px;padding-bottom:2.5rem}
-[data-testid="stSidebar"]{background:var(--secondary-background-color);border-right:3px solid #087F8C}
-[data-testid="stMetric"]{border:1px solid rgba(8,127,140,.24);border-left:4px solid #087F8C;border-radius:13px;padding:15px 17px;background:var(--secondary-background-color)}
-[data-testid="stMetricLabel"]{font-size:0.95rem;font-weight:600!important}
-[data-testid="stMetricValue"]{font-size:2rem;font-weight:750!important;letter-spacing:-.03em}
-h1{letter-spacing:-.035em}
-h2,h3{letter-spacing:-.02em}
-[data-testid="stTabs"] button[aria-selected="true"]{border-bottom:3px solid #087F8C!important;color:#087F8C!important}
+[data-testid="stSidebar"]{background:linear-gradient(170deg,#06264A 0%,#09365C 73%,#0B546C 100%)!important;border-right:3px solid #20B5C6}
+[data-testid="stSidebar"] [data-testid="stMarkdownContainer"],
+[data-testid="stSidebar"] [data-testid="stWidgetLabel"] *,
+[data-testid="stSidebar"] label{color:#EDF9FC!important}
+[data-testid="stSidebar"] [data-baseweb="select"]{background:#FFFFFF;border-radius:8px}
+[data-testid="stSidebar"] [data-baseweb="select"] *{color:#112B46!important}
+[data-testid="stSidebar"] [data-testid="stCaptionContainer"] *{color:#C7E8EF!important}
+.cch-brand-wrap{border-bottom:2px solid rgba(32,181,198,.7);padding:3px 0 15px;margin-bottom:16px}
+.cch-brand-wrap img{width:100%;max-width:240px;height:auto;border-radius:9px;display:block}
+.cch-brand-wrap .brand-note{font-size:12px;color:#C7E8EF;margin-top:8px}
+h1,h2,h3{color:#06264A!important;letter-spacing:-.025em}
+[data-testid="stMetric"]{border:1px solid #C8E2EB;border-left:4px solid #079DB5;border-radius:13px;padding:15px 17px;background:#FFFFFF;box-shadow:0 3px 12px rgba(6,38,74,.05)}
+[data-testid="stMetricLabel"]{font-size:0.95rem;font-weight:600!important;color:#36516B!important}
+[data-testid="stMetricValue"]{font-size:2.1rem;font-weight:750!important;letter-spacing:-.03em;color:#06264A!important}
+[data-testid="stTabs"] button{color:#274561!important;font-weight:600;padding:13px 12px}
+[data-testid="stTabs"] button[aria-selected="true"]{border-bottom:3px solid #079DB5!important;color:#006C83!important;background:rgba(32,181,198,.06)}
+[data-testid="stDataFrame"],[data-testid="stPlotlyChart"]{border-radius:12px;overflow:hidden}
+.stButton button[kind="primary"],button[data-testid="baseButton-primary"]{background:#079DB5;border-color:#079DB5}
 </style>''',unsafe_allow_html=True)
 
 def chart_style(fig, height=None):
@@ -58,16 +73,22 @@ def get(row,col): return row.get(col,np.nan)
 def pct(x): return f'{fmt(x,1)}%' if pd.notna(x) else 'N/A'
 def metric(row,col): return fmt(get(row,col),1 if col in ['shot_rate_per_10k','profile_trauma_drive_min'] else 0)
 
-st.sidebar.title('COOK COUNTY HEALTH')
-st.sidebar.caption('Chicago community health insights')
+# Official CCH profile artwork: circular Cook County seal + organization wordmark.
+# The URL is an external logo asset; replace with a local approved image for offline use.
+CCH_BRAND_IMAGE = 'https://pbs.twimg.com/profile_images/1842254877193596928/7cNH2u0x.jpg'
+st.sidebar.markdown(
+    f'<div class="cch-brand-wrap"><img src="{CCH_BRAND_IMAGE}" alt="Cook County Health branding" />'
+    '<div class="brand-note">Chicago Community Health Insights</div></div>',
+    unsafe_allow_html=True,
+)
 year=st.sidebar.selectbox('Reporting year',sorted(D.year.unique(),reverse=True))
 current=D[D.year==year].copy()
 areas=sorted(current.ca_name.unique())
 if 'selected_area' not in st.session_state: st.session_state.selected_area='All Chicago'
 if st.session_state.selected_area not in ['All Chicago']+areas: st.session_state.selected_area='All Chicago'
 area=st.sidebar.selectbox('Focus community area',['All Chicago']+areas,key='selected_area')
-st.sidebar.caption('77 Chicago community areas · 2012–2025 shooting data')
-st.title('Cook County Health | Chicago Community Insights')
+st.sidebar.caption(f'{D.ca_num.nunique()} Chicago community areas · {D.year.min()}–{D.year.max()} shooting data')
+st.title('Chicago Gun Violence & Healthcare Dashboard')
 st.caption('Community-level evidence · exploratory associations, not causal predictions')
 t1,t2,t3,t4=st.tabs(['🗺️ Overview & Map','📊 Socioeconomic Factors & Regression','🏥 Healthcare & Hospital Impact','🏘️ Neighborhood Comparison'])
 
@@ -79,7 +100,7 @@ rate=shot/pop*10000 if pop>0 else np.nan
 with t1:
     st.subheader(f'{area} · {year}')
     a,b,c,d=st.columns(4)
-    a.metric('Shooting victims',fmt(shot));b.metric('Fatal victims',fmt(fatal));c.metric('Nonfatal victims',fmt(nonfatal));d.metric('Victims per 10,000',fmt(rate,1))
+    a.metric('Shooting victims',fmt(shot));b.metric('Fatal victims',fmt(fatal));c.metric('Nonfatal victims',fmt(nonfatal));d.metric('Victims per 10k',fmt(rate,1))
     left,right=st.columns([1.55,1],gap='large')
     with left:
         st.subheader('Where are shooting victims concentrated?')
@@ -100,7 +121,7 @@ with t1:
             cid=int(feature['properties']['ca_num'])
             if cid not in lookup.index: continue
             r=lookup.loc[cid]
-            fields=[('Shooting victims',fmt(r.shot_total)),('Fatal victims',fmt(r.fatal)),('Nonfatal victims',fmt(r.nonfatal)),('Victims per 10,000',fmt(r.shot_rate_per_10k,1)),('Poverty (%)',pct(r.pct_poverty)),('Unemployment (%)',pct(r.pct_unemployed)),('Income per person', '$'+fmt(r.per_capita_income)),('Eviction filing rate',fmt(get(r,'eviction_filing_rate'),2)),('Estimated trauma drive (min)',fmt(get(r,'profile_trauma_drive_min'),1)),('Clinics (source estimate)',fmt(get(r,'profile_clinics'))),('Nearest listed trauma center',str(get(r,'profile_nearest_center'))),('Medicaid reliance (%)',pct(get(r,'pct_on_medicaid')))]
+            fields=[('Shooting victims',fmt(r.shot_total)),('Fatal victims',fmt(r.fatal)),('Nonfatal victims',fmt(r.nonfatal)),('Victims per 10k',fmt(r.shot_rate_per_10k,1)),('Poverty (%)',pct(r.pct_poverty)),('Unemployment (%)',pct(r.pct_unemployed)),('Income per person', '$'+fmt(r.per_capita_income)),('Eviction filing rate',fmt(get(r,'eviction_filing_rate'),2)),('Estimated trauma drive (min)',fmt(get(r,'profile_trauma_drive_min'),1)),('Clinics (source estimate)',fmt(get(r,'profile_clinics'))),('Nearest listed trauma center',str(get(r,'profile_nearest_center'))),('Medicaid reliance (%)',pct(get(r,'pct_on_medicaid')))]
             details=''.join(f'<tr><td style="padding:3px 8px">{html.escape(k)}</td><td><b>{html.escape(str(val))}</b></td></tr>' for k,val in fields)
             popup=folium.Popup(f'<div style="font:13px Arial;width:315px"><h3>{html.escape(str(r.ca_name))} · {year}</h3><table>{details}</table><p style="font-size:11px">Source definitions and years require verification. Travel time is estimated, not EMS response time.</p></div>',max_width=380)
             folium.GeoJson(feature,style_function=style,highlight_function=lambda f:{'weight':3,'color':'#111827','fillOpacity':.88},tooltip=f'{r.ca_name}: {choice} {fmt(get(r,field),1)}',popup=popup).add_to(mp)
@@ -120,7 +141,7 @@ with t1:
             position:fixed; z-index:9999; top:50%; right:14px;
             transform:translateY(-50%); box-sizing:border-box;
             background:transparent; border:none; border-radius:0; padding:0;
-            box-shadow:none; font:12px Arial,sans-serif; color:#142D4E;
+            box-shadow:none; font:12px Arial,sans-serif; color:#06264A;
           }}
           #cch-map-legend .legend-title {{
             font-weight:700; font-size:11px; line-height:1.25;
@@ -129,7 +150,7 @@ with t1:
           #cch-map-legend .legend-body {{display:flex;gap:6px;height:320px;align-items:stretch;}}
           #cch-map-legend .legend-gradient {{
             width:12px; min-width:12px; height:100%; border-radius:3px;
-            border:1px solid rgba(20,45,78,.18);
+            border:1px solid rgba(6,38,74,.18);
             background:linear-gradient(to bottom,#800026 0%,#f03b20 34%,#fec44f 68%,#fff7bc 100%);
           }}
           #cch-map-legend .legend-ticks {{
@@ -177,7 +198,7 @@ with t2:
     indicators={'Poverty (%)':'pct_poverty','Unemployment (%)':'pct_unemployed','Income per person ($)':'per_capita_income','Rent burden (%)':'pct_rent_burdened','Eviction filing rate':'eviction_filing_rate'}
     factor=st.selectbox('Compare shooting rates with',list(indicators));col=indicators[factor]
     valid=current.dropna(subset=[col,'shot_rate_per_10k'])
-    fig=px.scatter(valid,x=col,y='shot_rate_per_10k',size='shot_total',hover_name='ca_name',color='shot_rate_per_10k',color_continuous_scale=[(0,'#d7eff0'),(.5,TEAL),(1,RED)],labels={col:factor,'shot_rate_per_10k':'Shooting victims per 10,000'},height=410)
+    fig=px.scatter(valid,x=col,y='shot_rate_per_10k',size='shot_total',hover_name='ca_name',color='shot_rate_per_10k',color_continuous_scale=[(0,'#DDF2F6'),(.5,TEAL),(1,RED)],labels={col:factor,'shot_rate_per_10k':'Shooting victims per 10,000'},height=410)
     st.plotly_chart(fig,use_container_width=True)
     st.caption('Each bubble is one community area. Association does not establish that the factor causes shootings.')
     st.subheader('Exploratory multivariate regression')
@@ -256,12 +277,12 @@ with t3:
         folium.Marker(
             [float(lat), float(lon)], tooltip=hospital_name,
             popup=folium.Popup(popup_html, max_width=320),
-            icon=folium.Icon(color="blue", icon="plus-sign")
+            icon=folium.Icon(color="cadetblue", icon="plus-sign")
         ).add_to(other_layer)
 
     stroger_popup = """
-    <div style="font-family:Arial,sans-serif;min-width:275px;line-height:1.6;color:#142D4E">
-      <div style="background:#142D4E;color:white;padding:10px;border-radius:7px 7px 0 0">
+    <div style="font-family:Arial,sans-serif;min-width:275px;line-height:1.6;color:#06264A">
+      <div style="background:#06264A;color:white;padding:10px;border-radius:7px 7px 0 0">
         <strong>COOK COUNTY HEALTH</strong><br>
         John H. Stroger Jr. Hospital
       </div>
@@ -269,7 +290,7 @@ with t3:
         <b>Adult Level I Trauma Center</b><br>
         1969 W. Ogden Avenue<br>Chicago, IL 60612<br>
         Public teaching hospital · Emergency and trauma care<br>
-        <a href="https://cookcountyhealth.org/" target="_blank" rel="noopener noreferrer">
+        <a href="https://cookcountyhealth.org/locations/john-h-stroger-jr-hospital-of-cook-county/" target="_blank" rel="noopener noreferrer">
           Cook County Health — official website</a>
       </div>
     </div>
@@ -278,7 +299,7 @@ with t3:
         [stroger_lat, stroger_lon],
         tooltip="★ Cook County Health — Stroger Hospital",
         popup=folium.Popup(stroger_popup, max_width=360),
-        icon=folium.Icon(color="red", icon="plus-sign")
+        icon=folium.Icon(color="darkblue", icon="plus-sign")
     ).add_to(stroger_layer)
     other_layer.add_to(hospital_map)
     stroger_layer.add_to(hospital_map)
@@ -287,7 +308,7 @@ with t3:
         hospital_map, height=470, use_container_width=True,
         key=f"hospital_map_{focus_stroger}_{show_other}", returned_objects=[]
     )
-    st.caption("Red: Stroger Hospital · Blue: other hospitals in the dataset. "
+    st.caption("Navy: Stroger Hospital · Turquoise-blue: other hospitals in the dataset. "
                "Map coordinates are approximate; confirm locations and trauma designations before publication.")
 
     st.divider()
@@ -301,7 +322,7 @@ with t3:
         "**John H. Stroger Jr. Hospital of Cook County** is a public teaching "
         "hospital providing emergency and trauma services. "
         "**Address:** 1969 W. Ogden Avenue, Chicago, IL 60612. "
-        "[Official Cook County Health website](https://cookcountyhealth.org/)"
+        "[Official Stroger Hospital page](https://cookcountyhealth.org/locations/john-h-stroger-jr-hospital-of-cook-county/)"
     )
     st.info("The neighborhood shooting totals in this dashboard are not counts of "
             "patients treated at Stroger Hospital. Hospital-specific firearm injury "
@@ -367,7 +388,7 @@ with t4:
             top = subset.head(10).sort_values(measure)
             bar = px.bar(top, x=measure, y='ca_name', orientation='h',
                          labels={measure:measure_label, 'ca_name':''},
-                         color=measure, color_continuous_scale=[(0,'#d7eff0'),(.5,TEAL),(1,RED)], height=400)
+                         color=measure, color_continuous_scale=[(0,'#DDF2F6'),(.5,TEAL),(1,RED)], height=400)
             bar.update_layout(showlegend=False, coloraxis_showscale=False,
                               margin=dict(l=0,r=8,t=5,b=0))
             st.plotly_chart(bar, use_container_width=True)
@@ -379,7 +400,7 @@ with t4:
             else:
                 scatter = px.scatter(scatter_data, x='pct_poverty', y='shot_rate_per_10k',
                                      hover_name='ca_name', color='pct_unemployed',
-                                     color_continuous_scale=[(0,'#d7eff0'),(.5,TEAL),(1,RED)],
+                                     color_continuous_scale=[(0,'#DDF2F6'),(.5,TEAL),(1,RED)],
                                      labels={'pct_poverty':'Poverty (%)',
                                              'shot_rate_per_10k':'Victims per 10,000',
                                              'pct_unemployed':'Unemployment (%)'},
@@ -480,7 +501,7 @@ with t4:
             healthcare = px.scatter(access,x='profile_trauma_drive_min',y='shot_rate_per_10k',
                                     hover_name='ca_name',size='shot_total',
                                     color='shot_rate_per_10k',
-                                    color_continuous_scale=[(0,'#d7eff0'),(.5,TEAL),(1,RED)],
+                                    color_continuous_scale=[(0,'#DDF2F6'),(.5,TEAL),(1,RED)],
                                     labels={'profile_trauma_drive_min':'Estimated trauma center drive (minutes)',
                                             'shot_rate_per_10k':'Shooting victims per 10,000'},
                                     hover_data={'profile_nearest_center':True} if 'profile_nearest_center' in access.columns else None,
