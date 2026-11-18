@@ -7,6 +7,7 @@ import plotly.graph_objects as go
 import streamlit as st
 import folium
 from streamlit_folium import st_folium
+from branca.element import Element
 import statsmodels.api as sm
 
 st.set_page_config(page_title='Chicago Gun Violence & Healthcare', page_icon='🏙️', layout='wide')
@@ -84,7 +85,13 @@ with t1:
             details=''.join(f'<tr><td style="padding:3px 8px">{html.escape(k)}</td><td><b>{html.escape(str(val))}</b></td></tr>' for k,val in fields)
             popup=folium.Popup(f'<div style="font:13px Arial;width:315px"><h3>{html.escape(str(r.ca_name))} · {year}</h3><table>{details}</table><p style="font-size:11px">Source definitions and years require verification. Travel time is estimated, not EMS response time.</p></div>',max_width=380)
             folium.GeoJson(feature,style_function=style,highlight_function=lambda f:{'weight':3,'color':'#111827','fillOpacity':.88},tooltip=f'{r.ca_name}: {choice} {fmt(get(r,field),1)}',popup=popup).add_to(mp)
-        cmap.add_to(mp)
+        mp.get_root().html.add_child(Element(f"""
+        <div style="position:absolute;right:10px;top:70px;z-index:9999;background:white;padding:8px;color:black">
+        {choice}<div style="display:flex;gap:8px">
+        <div style="width:15px;height:160px;background:linear-gradient(to top,#fff7bc,#fec44f,#f03b20,#800026)"></div>
+        <div style="display:flex;flex-direction:column;justify-content:space-between">
+        <span>{vmax:.1f}</span><span>{vmin:.1f}</span></div></div></div>
+        """))
         st_folium(mp,height=520,use_container_width=True,key=f'community_map_{year}_{choice}',returned_objects=['last_active_drawing'])
         st.caption('Click any neighborhood polygon for its detailed popup. Use the community selector on the left to update every chart.')
     with right:
