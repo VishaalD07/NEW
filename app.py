@@ -104,7 +104,55 @@ with t1:
             details=''.join(f'<tr><td style="padding:3px 8px">{html.escape(k)}</td><td><b>{html.escape(str(val))}</b></td></tr>' for k,val in fields)
             popup=folium.Popup(f'<div style="font:13px Arial;width:315px"><h3>{html.escape(str(r.ca_name))} · {year}</h3><table>{details}</table><p style="font-size:11px">Source definitions and years require verification. Travel time is estimated, not EMS response time.</p></div>',max_width=380)
             folium.GeoJson(feature,style_function=style,highlight_function=lambda f:{'weight':3,'color':'#111827','fillOpacity':.88},tooltip=f'{r.ca_name}: {choice} {fmt(get(r,field),1)}',popup=popup).add_to(mp)
-        cmap.add_to(mp)
+        # Custom vertical map legend, positioned INSIDE the map on its right edge.
+        # Do not add cmap to the map: its default horizontal legend sits on top.
+        def legend_number(x):
+            return f'{x:,.0f}' if abs(x) >= 100 else f'{x:,.1f}'
+
+        legend_ticks = [vmax - (vmax - vmin) * fraction for fraction in (0, .25, .5, .75, 1)]
+        legend_labels = ''.join(
+            f'<span>{html.escape(legend_number(number))}</span>'
+            for number in legend_ticks
+        )
+        vertical_legend = f"""
+        <style>
+          #cch-map-legend {{
+            position:fixed; z-index:9999; top:50%; right:12px;
+            transform:translateY(-50%); box-sizing:border-box;
+            background:rgba(255,255,255,.96); border:1px solid #cbd5e1;
+            border-radius:12px; padding:12px 10px 12px 12px;
+            box-shadow:0 4px 18px rgba(20,45,78,.18);
+            font:12px Arial,sans-serif; color:#142D4E;
+          }}
+          #cch-map-legend .legend-title {{
+            font-weight:700; font-size:12px; line-height:1.35;
+            max-width:110px; margin-bottom:10px;
+          }}
+          #cch-map-legend .legend-body {{display:flex;gap:7px;height:340px;align-items:stretch;}}
+          #cch-map-legend .legend-gradient {{
+            width:20px; min-width:20px; height:100%; border-radius:5px;
+            border:1px solid rgba(20,45,78,.14);
+            background:linear-gradient(to bottom,#800026 0%,#f03b20 34%,#fec44f 68%,#fff7bc 100%);
+          }}
+          #cch-map-legend .legend-ticks {{
+            display:flex;flex-direction:column;justify-content:space-between;
+            text-align:left;white-space:nowrap;font-size:11px;
+          }}
+          @media(max-width:560px) {{
+            #cch-map-legend {{right:6px;padding:8px;}}
+            #cch-map-legend .legend-body {{height:260px;}}
+            #cch-map-legend .legend-title {{max-width:85px;font-size:10px;}}
+          }}
+        </style>
+        <div id="cch-map-legend" aria-label="Vertical map legend">
+          <div class="legend-title">{html.escape(choice)}</div>
+          <div class="legend-body">
+            <div class="legend-gradient"></div>
+            <div class="legend-ticks">{legend_labels}</div>
+          </div>
+        </div>
+        """
+        mp.get_root().html.add_child(folium.Element(vertical_legend))
         st_folium(mp,height=520,use_container_width=True,key=f'community_map_{year}_{choice}',returned_objects=['last_active_drawing'])
         st.caption('Click any neighborhood polygon for its detailed popup. Use the community selector on the left to update every chart.')
     with right:
