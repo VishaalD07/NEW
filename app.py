@@ -86,9 +86,15 @@ with t1:
             popup=folium.Popup(f'<div style="font:13px Arial;width:315px"><h3>{html.escape(str(r.ca_name))} · {year}</h3><table>{details}</table><p style="font-size:11px">Source definitions and years require verification. Travel time is estimated, not EMS response time.</p></div>',max_width=380)
             folium.GeoJson(feature,style_function=style,highlight_function=lambda f:{'weight':3,'color':'#111827','fillOpacity':.88},tooltip=f'{r.ca_name}: {choice} {fmt(get(r,field),1)}',popup=popup).add_to(mp)
         cmap.add_to(mp)
-        cmap.get_root().html.add_child(folium.Element("""
+        from branca.element import Element
+        mp.get_root().html.add_child(Element(f"""
         <style>
-        .leaflet-control .legend {right:10px!important;left:auto!important}
+        #{cmap.get_name()} {{
+            position:absolute!important;
+            top:70px!important;
+            right:10px!important;
+            left:auto!important;
+        }}
         </style>
         """))
         st_folium(mp,height=520,use_container_width=True,key=f'community_map_{year}_{choice}',returned_objects=['last_active_drawing'])
