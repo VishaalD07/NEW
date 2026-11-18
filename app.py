@@ -8,6 +8,7 @@ import streamlit as st
 import folium
 from streamlit_folium import st_folium
 import statsmodels.api as sm
+from io import BytesIO
 
 NAVY = '#06264A'
 TEAL = '#079DB5'
@@ -31,85 +32,59 @@ def load():
     for f in geo['features']: f['properties']['ca_num']=int(f['properties']['ca_num'])
     return d,h,geo
 D,H,G=load()
-st.markdown('''<style>
-/* Cook County Health-inspired dashboard palette */
-:root {--cch-navy:#06264A;--cch-teal:#079DB5;--cch-turquoise:#20B5C6;--cch-lavender:#8B83CF;--cch-red:#C84459}
-html,body,[data-testid="stAppViewContainer"]{background:#F7FAFD;color:#112B46}
-.block-container{padding-top:1.2rem;max-width:1500px;padding-bottom:2.5rem}
-[data-testid="stSidebar"]{background:linear-gradient(170deg,#06264A 0%,#09365C 73%,#0B546C 100%)!important;border-right:3px solid #20B5C6}
+st.markdown("""<style>
+/* Cook County Health-inspired theme: respect Streamlit light/dark surface variables. */
+:root { --cch-navy:#06264A; --cch-teal:#079DB5; --cch-red:#C84459; }
+.block-container { padding-top:1.2rem; max-width:1500px; padding-bottom:2.5rem; }
+h1,h2,h3 { letter-spacing:-.025em; }
+[data-testid="stSidebar"] {
+ background:linear-gradient(170deg,#06264A 0%,#09365C 73%,#0B546C 100%)!important;
+ border-right:3px solid #20B5C6;
+}
 [data-testid="stSidebar"] [data-testid="stMarkdownContainer"],
 [data-testid="stSidebar"] [data-testid="stWidgetLabel"] *,
-[data-testid="stSidebar"] label{color:#EDF9FC!important}
-[data-testid="stSidebar"] [data-baseweb="select"]{background:#FFFFFF;border-radius:8px}
-[data-testid="stSidebar"] [data-baseweb="select"] *{color:#112B46!important}
-[data-testid="stSidebar"] [data-testid="stCaptionContainer"] *{color:#C7E8EF!important}
-.cch-brand-wrap{border-bottom:2px solid rgba(32,181,198,.7);padding:3px 0 15px;margin-bottom:16px}
-.cch-brand-wrap img{width:100%;max-width:240px;height:auto;border-radius:9px;display:block}
-.cch-brand-wrap .brand-note{font-size:12px;color:#C7E8EF;margin-top:8px}
-h1,h2,h3{color:#06264A!important;letter-spacing:-.025em}
-[data-testid="stMetric"]{border:1px solid #C8E2EB;border-left:4px solid #079DB5;border-radius:13px;padding:15px 17px;background:#FFFFFF;box-shadow:0 3px 12px rgba(6,38,74,.05)}
-[data-testid="stMetricLabel"]{font-size:0.95rem;font-weight:600!important;color:#36516B!important}
-[data-testid="stMetricValue"]{font-size:2.1rem;font-weight:750!important;letter-spacing:-.03em;color:#06264A!important}
-/* Modern Cook County Health-style top navigation: navy bar + turquoise selected tab */
-[data-testid="stTabs"] [data-baseweb="tab-list"] {
-    display:flex!important;
-    gap:6px!important;
-    padding:9px!important;
-    background:#06264A!important;
-    border:1px solid #123D66!important;
-    border-radius:14px!important;
-    box-shadow:0 6px 18px rgba(6,38,74,.13)!important;
-    overflow-x:auto!important;
-    scrollbar-width:thin;
-    scrollbar-color:#20B5C6 #06264A;
+[data-testid="stSidebar"] label { color:#EDF9FC!important; }
+[data-testid="stSidebar"] [data-testid="stCaptionContainer"] * { color:#C7E8EF!important; }
+[data-testid="stSidebar"] [data-baseweb="select"] { background:var(--secondary-background-color); border-radius:8px; }
+.cch-brand-wrap { border-bottom:2px solid rgba(32,181,198,.7); padding:3px 0 15px; margin-bottom:16px; }
+.cch-brand-wrap img { width:100%; max-width:240px; height:auto; border-radius:9px; display:block; }
+.cch-brand-wrap .brand-note { font-size:12px; color:#C7E8EF; margin-top:8px; }
+[data-testid="stMetric"] {
+ border:1px solid rgba(7,157,181,.32); border-left:4px solid #079DB5;
+ border-radius:13px; padding:15px 17px;
+ background:var(--secondary-background-color);
 }
-[data-testid="stTabs"] [data-baseweb="tab-list"] button[role="tab"] {
-    flex:1 0 auto!important;
-    justify-content:center!important;
-    min-height:47px!important;
-    padding:12px 14px!important;
-    border:1px solid transparent!important;
-    border-radius:9px!important;
-    background:transparent!important;
-    color:#F2F9FD!important;
-    font-size:0.88rem!important;
-    font-weight:650!important;
-    line-height:1.25!important;
-    letter-spacing:.005em!important;
-    white-space:nowrap!important;
-    transition:background .18s ease,box-shadow .18s ease,color .18s ease!important;
+[data-testid="stMetricLabel"] { font-size:.95rem; font-weight:600!important; }
+[data-testid="stMetricValue"] { font-size:2.05rem; font-weight:750!important; }
+/* Fixed dark/navy pill tabs in either appearance mode; all labels always white. */
+[data-testid="stTabs"] [role="tablist"] {
+ display:flex!important; gap:6px!important; padding:8px!important;
+ border-radius:14px!important; background:#06264A!important;
+ border:1px solid #1B4C73!important; overflow-x:auto!important;
 }
-[data-testid="stTabs"] [data-baseweb="tab-list"] button[role="tab"] * {
-    color:inherit!important;
+[data-testid="stTabs"] button[role="tab"] {
+ flex:1 0 auto!important; padding:10px 13px!important; min-height:46px!important;
+ border-radius:9px!important; border:1px solid #2D587A!important;
+ background:#123C64!important; color:#FFFFFF!important;
+ -webkit-text-fill-color:#FFFFFF!important; opacity:1!important; font-weight:650!important;
 }
-[data-testid="stTabs"] [data-baseweb="tab-list"] button[role="tab"]:hover {
-    background:#16466F!important;
-    color:#FFFFFF!important;
+[data-testid="stTabs"] button[role="tab"] *,
+[data-testid="stTabs"] button[role="tab"] p,
+[data-testid="stTabs"] button[role="tab"] span {
+ color:#FFFFFF!important; -webkit-text-fill-color:#FFFFFF!important; opacity:1!important;
 }
-[data-testid="stTabs"] [data-baseweb="tab-list"] button[role="tab"][aria-selected="true"] {
-    background:#079DB5!important;
-    border-color:#35C1D2!important;
-    color:#FFFFFF!important;
-    box-shadow:0 3px 9px rgba(0,0,0,.18)!important;
+[data-testid="stTabs"] button[role="tab"]:hover { background:#176486!important; }
+[data-testid="stTabs"] button[role="tab"][aria-selected="true"] {
+ background:#079DB5!important; border-color:#6CE3EF!important;
 }
 [data-testid="stTabs"] [data-baseweb="tab-highlight"],
-[data-testid="stTabs"] [data-baseweb="tab-border"] {
-    display:none!important;
-}
-[data-testid="stTabs"] [data-baseweb="tab-panel"] {
-    padding-top:1.25rem!important;
-}
+[data-testid="stTabs"] [data-baseweb="tab-border"] { display:none!important; }
+[data-testid="stTabs"] [role="tabpanel"] { padding-top:1.1rem!important; }
+[data-testid="stDataFrame"], [data-testid="stPlotlyChart"] { border-radius:12px; overflow:hidden; }
 @media(max-width:900px) {
-    [data-testid="stTabs"] [data-baseweb="tab-list"] {gap:4px!important;padding:6px!important;}
-    [data-testid="stTabs"] [data-baseweb="tab-list"] button[role="tab"] {
-        font-size:.82rem!important;
-        padding:10px 12px!important;
-        min-height:42px!important;
-    }
+ [data-testid="stTabs"] button[role="tab"] { font-size:.82rem!important; padding:9px 11px!important; }
 }
-[data-testid="stDataFrame"],[data-testid="stPlotlyChart"]{border-radius:12px;overflow:hidden}
-.stButton button[kind="primary"],button[data-testid="baseButton-primary"]{background:#079DB5;border-color:#079DB5}
-</style>''',unsafe_allow_html=True)
+</style>""",unsafe_allow_html=True)
 
 def chart_style(fig, height=None):
     fig.update_layout(font=dict(family='Arial',size=13),
@@ -137,6 +112,14 @@ st.sidebar.markdown(
     unsafe_allow_html=True,
 )
 year=st.sidebar.selectbox('Reporting year',sorted(D.year.unique(),reverse=True))
+years_available=sorted(D.year.unique().tolist())
+range_start,range_end=st.sidebar.select_slider(
+    'Historical comparison range', options=years_available,
+    value=(years_available[0],years_available[-1]),
+    help='Controls the historical trends and the PDF report. The reporting-year map and KPIs remain annual.',
+)
+D_window=D[D.year.between(range_start,range_end)].copy()
+
 current=D[D.year==year].copy()
 areas=sorted(current.ca_name.unique())
 if 'selected_area' not in st.session_state: st.session_state.selected_area='All Chicago'
@@ -156,6 +139,35 @@ with t1:
     st.subheader(f'{area} · {year}')
     a,b,c,d=st.columns(4)
     a.metric('Shooting victims',fmt(shot));b.metric('Fatal victims',fmt(fatal));c.metric('Nonfatal victims',fmt(nonfatal));d.metric('Victims per 10k',fmt(rate,1))
+    st.markdown('#### Community insights at a glance')
+    valid_rate=current.dropna(subset=['shot_rate_per_10k'])
+    if not valid_rate.empty:
+        highest=valid_rate.loc[valid_rate.shot_rate_per_10k.idxmax()]
+        insight1=(f"**Highest recorded victim rate:** {highest.ca_name} "
+                  f"({highest.shot_rate_per_10k:.1f} per 10k in {year}).")
+    else:
+        insight1='**Highest recorded victim rate:** No data available.'
+    prior=D[D.year.eq(year-1)][['ca_num','shot_total','population']].copy()
+    prior['prior_rate']=np.where(prior.population.gt(0),prior.shot_total/prior.population*10000,np.nan)
+    changes=current[['ca_num','ca_name','shot_rate_per_10k']].merge(
+        prior[['ca_num','prior_rate']],on='ca_num',how='inner').dropna()
+    if not changes.empty:
+        changes['rate_drop']=changes['prior_rate']-changes['shot_rate_per_10k']
+        best=changes.loc[changes.rate_drop.idxmax()]
+        insight2=(f"**Largest year-over-year rate decrease:** {best.ca_name} "
+                  f"({best.rate_drop:+.1f} per 10k decrease vs. {year-1}).") if best.rate_drop>0 else                  f'**Year-over-year comparison:** No community area shows a lower rate than {year-1} in the comparable data.'
+    else:
+        insight2=f'**Year-over-year comparison:** Comparable {year-1} rates are unavailable.'
+    valid_drive=current.dropna(subset=['profile_trauma_drive_min'])
+    if not valid_drive.empty:
+        longest=valid_drive.loc[valid_drive.profile_trauma_drive_min.idxmax()]
+        insight3=(f"**Longest estimated trauma-center drive:** {longest.ca_name} "
+                  f"({longest.profile_trauma_drive_min:.1f} min; not EMS response time).")
+    else:
+        insight3='**Estimated trauma-center drive:** No data available.'
+    for insight in (insight1,insight2,insight3):
+        st.markdown('- '+insight)
+    st.caption('Automatically calculated from your selected year; descriptive observations, not validated public-health recommendations.')
     left,right=st.columns([1.55,1],gap='large')
     with left:
         st.subheader('Where are shooting victims concentrated?')
@@ -167,6 +179,7 @@ with t1:
         vmin=float(v.min()) if len(v) else 0; vmax=float(v.max()) if len(v) else 1
         import branca.colormap as bcm
         cmap=bcm.LinearColormap(['#fff7bc','#fec44f','#f03b20','#800026'],vmin=vmin,vmax=max(vmax,vmin+.01),caption=choice)
+        show_trauma_on_main=st.checkbox('Show listed trauma hospitals on this map',value=False,key='main_trauma_markers')
         mp=folium.Map(location=[41.84,-87.68],zoom_start=10,tiles='OpenStreetMap',control_scale=True)
         lookup=current.set_index('ca_num')
         def style(feature):
@@ -180,6 +193,22 @@ with t1:
             details=''.join(f'<tr><td style="padding:3px 8px">{html.escape(k)}</td><td><b>{html.escape(str(val))}</b></td></tr>' for k,val in fields)
             popup=folium.Popup(f'<div style="font:13px Arial;width:315px"><h3>{html.escape(str(r.ca_name))} · {year}</h3><table>{details}</table><p style="font-size:11px">Source definitions and years require verification. Travel time is estimated, not EMS response time.</p></div>',max_width=380)
             folium.GeoJson(feature,style_function=style,highlight_function=lambda f:{'weight':3,'color':'#111827','fillOpacity':.88},tooltip=f'{r.ca_name}: {choice} {fmt(get(r,field),1)}',popup=popup).add_to(mp)
+        if show_trauma_on_main and {'hospital','lat','lon'}.issubset(H.columns):
+            trauma_overlay=folium.FeatureGroup(name='Listed hospitals',show=True)
+            for _, hosp in H.iterrows():
+                lat=pd.to_numeric(hosp.get('lat'),errors='coerce')
+                lon=pd.to_numeric(hosp.get('lon'),errors='coerce')
+                if pd.isna(lat) or pd.isna(lon):
+                    continue
+                name=str(hosp.get('hospital','Listed hospital'))
+                is_stroger=('stroger' in name.lower() or 'cook county hospital' in name.lower())
+                folium.CircleMarker(
+                    location=[float(lat),float(lon)],radius=7 if is_stroger else 5,
+                    color=NAVY if is_stroger else TEAL,fill=True,fill_opacity=.95,
+                    tooltip=name,
+                    popup=folium.Popup(html.escape(name)+'<br>Location from hospital dataset',max_width=280)
+                ).add_to(trauma_overlay)
+            trauma_overlay.add_to(mp)
         # Custom vertical map legend, positioned INSIDE the map on its right edge.
         # Do not add cmap to the map: its default horizontal legend sits on top.
         def legend_number(x):
@@ -269,7 +298,25 @@ with t2:
         dispersion=model.pearson_chi2/model.df_resid
         m1,m2,m3=st.columns(3)
         m1.metric('Observations',f'{len(model_data):,}');m2.metric('Pearson dispersion',fmt(dispersion,2));m3.metric('Predictors','Poverty + unemployment')
-        if dispersion>1.5:st.warning('Overdispersion detected. Poisson uncertainty may be unreliable; compare a negative-binomial model before presenting inferential claims.')
+        if dispersion>1.5:
+            st.warning('Overdispersion detected. Poisson standard errors and uncertainty may be unreliable.')
+        with st.expander('What do Poisson regression and rate ratios mean?'):
+            st.write('Poisson regression estimates how a count (shooting victims) is associated with measured factors while accounting for the population at risk. A rate ratio of 1.10 corresponds to a fitted rate about 10% higher for a one-percentage-point increase in that factor, holding the other predictors and year indicators constant. A ratio of 0.90 corresponds to about 10% lower. These are not causal effects or reliable forecasts.')
+            st.write('Because some socioeconomic estimates are repeated across years and shooting counts may be overdispersed, the model should not be used for clinical, emergency, or policy decisions without independent validation.')
+        if dispersion>1.5:
+            with st.expander('Exploratory negative-binomial comparison'):
+                try:
+                    from statsmodels.discrete.discrete_model import NegativeBinomial
+                    nb=NegativeBinomial(model_data.shot_total.astype(float),X,
+                                        offset=np.log(model_data.population.astype(float))).fit(
+                                        disp=False,maxiter=250)
+                    st.write(f'Poisson AIC: {model.aic:,.1f} | Negative-binomial AIC: {nb.aic:,.1f}')
+                    st.caption('Lower AIC suggests better in-sample fit under the fitted model assumptions, not validated prediction. Repeated community profiles and year effects require careful review.')
+                    nb_ratios=pd.DataFrame({'Factor':predictors,
+                        'Negative-binomial rate ratio':np.exp(nb.params[predictors].values)})
+                    st.dataframe(nb_ratios.round(3),hide_index=True,use_container_width=True)
+                except Exception as nb_error:
+                    st.info(f'Negative-binomial comparison unavailable for this dataset: {nb_error}')
         result=pd.DataFrame({'Factor':['Poverty (+1 percentage point)','Unemployment (+1 percentage point)'],'Rate ratio':np.exp(model.params[predictors].to_numpy()),'95% CI lower':np.exp(model.conf_int().loc[predictors,0].to_numpy()),'95% CI upper':np.exp(model.conf_int().loc[predictors,1].to_numpy())})
         st.dataframe(result.round(3),hide_index=True,use_container_width=True)
         display=model_data[model_data.year==year].copy()
@@ -404,6 +451,16 @@ with t3:
     if len(financial):
         fig=px.bar(financial,x='total_costs',y='hospital',orientation='h',labels={'total_costs':'Hospital-wide total costs ($)','hospital':''},height=400)
         st.plotly_chart(fig,use_container_width=True)
+    st.subheader('Estimated access compared with shooting rates')
+    access_preview=current.dropna(subset=['profile_trauma_drive_min','shot_rate_per_10k'])
+    if not access_preview.empty:
+        hospital_scatter=px.scatter(access_preview,x='profile_trauma_drive_min',
+            y='shot_rate_per_10k',hover_name='ca_name',
+            labels={'profile_trauma_drive_min':'Estimated drive to listed trauma center (minutes)',
+                    'shot_rate_per_10k':'Shooting victims per 10k'},
+            color_discrete_sequence=[TEAL],height=360)
+        st.plotly_chart(chart_style(hospital_scatter),use_container_width=True)
+    st.caption('Driving minutes are dataset estimates, not ambulance transport or EMS response times.')
     st.subheader('Neighborhood healthcare comparison')
     st.dataframe(current[['ca_name','shot_rate_per_10k','profile_nearest_center','profile_trauma_drive_min','profile_clinics']].sort_values('shot_rate_per_10k',ascending=False),hide_index=True,use_container_width=True)
 
@@ -518,7 +575,7 @@ with t4:
 
         st.divider()
         st.subheader('Two-community trend comparison')
-        st.caption('Track annual shooting victim rates from 2012 through 2025 (or the years available in the dataset).')
+        st.caption(f'Track annual shooting victim rates in the selected {range_start}–{range_end} historical comparison range.')
         trend_areas = sorted(D.ca_name.dropna().unique().tolist())
         ta,tb = st.columns(2)
         first_trend = ta.selectbox('Trend: community A',trend_areas,
@@ -530,7 +587,7 @@ with t4:
         trend_column='shot_rate_per_10k' if view_metric=='Victims per 10,000' else 'shot_total'
         if first_trend==second_trend:
             st.info('Choose different communities for two separate trend lines.')
-        historical=D[D.ca_name.isin([first_trend,second_trend])].sort_values('year').copy()
+        historical=D_window[D_window.ca_name.isin([first_trend,second_trend])].sort_values('year').copy()
         historical=historical.dropna(subset=[trend_column])
         if historical.empty:
             st.info('No annual data is available for this trend comparison.')
@@ -541,6 +598,17 @@ with t4:
             lines.update_layout(height=420,xaxis=dict(dtick=1),hovermode='x unified')
             st.plotly_chart(chart_style(lines),use_container_width=True)
             st.caption('A change in victim rate does not establish why a community changed. The trend uses the available yearly records only.')
+
+        st.markdown('**Citywide historical trend for your selected range**')
+        city_history=D_window.dropna(subset=['shot_total','population']).groupby('year',as_index=False)[['shot_total','population']].sum()
+        city_history=city_history[city_history.population.gt(0)].copy()
+        city_history['rate']=city_history.shot_total/city_history.population*10000
+        if not city_history.empty:
+            city_chart=px.line(city_history,x='year',y='rate',markers=True,
+                labels={'year':'Year','rate':'Citywide victims per 10k'},
+                color_discrete_sequence=[TEAL],height=290)
+            st.plotly_chart(chart_style(city_chart),use_container_width=True)
+            st.caption('Citywide yearly rates = summed victims ÷ summed population × 10,000. These are annual values, not cumulative totals.')
 
         st.divider()
         st.subheader('Healthcare accessibility versus shooting victim rates')
@@ -597,6 +665,118 @@ with t4:
                            full.to_csv(index=False).encode('utf-8'),
                            file_name=f'cook_county_neighborhood_comparison_{year}.csv',
                            mime='text/csv', key='download_comparison')
+
+
+# Client-ready PDF report using the same selection and currently loaded dataset.
+def create_client_pdf(data, all_history, hospitals, reporting_year, community, start_year, end_year):
+    from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle, Image, KeepTogether
+    from reportlab.lib import colors
+    from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
+    from reportlab.lib.enums import TA_CENTER
+    from reportlab.lib.units import inch
+    import matplotlib
+    matplotlib.use('Agg')
+    import matplotlib.pyplot as plt
+
+    navy=colors.HexColor(NAVY)
+    teal=colors.HexColor(TEAL)
+    out=BytesIO()
+    pdf=SimpleDocTemplate(out,pagesize=(612,792),leftMargin=42,rightMargin=42,
+                          topMargin=42,bottomMargin=42)
+    styles=getSampleStyleSheet()
+    styles.add(ParagraphStyle(name='CCHTitle',parent=styles['Title'],textColor=navy,fontSize=20,leading=24,spaceAfter=12))
+    styles.add(ParagraphStyle(name='CCHHeading',parent=styles['Heading2'],textColor=navy,spaceBefore=14,spaceAfter=7))
+    styles.add(ParagraphStyle(name='CCHBody',parent=styles['BodyText'],fontSize=9,leading=13,spaceAfter=7))
+    story=[Paragraph('Cook County Health | Community Insights',styles['CCHTitle']),
+           Paragraph(f'{html.escape(community)} | Reporting year {reporting_year} | Historical view {start_year}–{end_year}',styles['CCHBody'])]
+    result=data if community=='All Chicago' else data[data.ca_name.eq(community)]
+    patients=int(result.shot_total.sum())
+    fatal_n=int(result.fatal.sum())
+    pop_sum=result.population.sum()
+    patient_rate=patients/pop_sum*10000 if pd.notna(pop_sum) and pop_sum>0 else np.nan
+    kpi_data=[['Shooting victims','Fatal victims','Victims per 10k'],
+              [f'{patients:,}',f'{fatal_n:,}',fmt(patient_rate,1)]]
+    kpi_table=Table(kpi_data,colWidths=[175]*3,rowHeights=[27,35])
+    kpi_table.setStyle(TableStyle([
+        ('BACKGROUND',(0,0),(-1,0),navy),('TEXTCOLOR',(0,0),(-1,0),colors.white),
+        ('BACKGROUND',(0,1),(-1,1),colors.HexColor('#EAF7FA')),
+        ('TEXTCOLOR',(0,1),(-1,1),navy),('FONTSIZE',(0,0),(-1,-1),10),
+        ('ALIGN',(0,0),(-1,-1),'CENTER'),('VALIGN',(0,0),(-1,-1),'MIDDLE')]))
+    story.extend([kpi_table,Spacer(1,12),Paragraph('Selected-year observations',styles['CCHHeading'])])
+    valid=data.dropna(subset=['shot_rate_per_10k'])
+    if community=='All Chicago' and not valid.empty:
+        top=valid.sort_values('shot_rate_per_10k',ascending=False).iloc[0]
+        story.append(Paragraph(f'Highest observed community rate: {html.escape(str(top.ca_name))} ({top.shot_rate_per_10k:.1f} victims per 10k).',styles['CCHBody']))
+    elif community!='All Chicago' and not result.empty:
+        r=result.iloc[0]
+        if pd.notna(r.get('profile_trauma_drive_min',np.nan)):
+            story.append(Paragraph(f'Estimated trauma-center driving time: {r.profile_trauma_drive_min:.1f} minutes. Not EMS transport time.',styles['CCHBody']))
+
+    history=all_history[all_history.year.between(start_year,end_year)]
+    history=history if community=='All Chicago' else history[history.ca_name.eq(community)]
+    history=history.dropna(subset=['shot_total','population']).groupby('year',as_index=False)[['shot_total','population']].sum()
+    history=history[history.population.gt(0)].copy()
+    if not history.empty:
+        history['victim_rate']=history.shot_total/history.population*10000
+        fig,ax=plt.subplots(figsize=(7.1,2.5))
+        ax.plot(history.year,history.victim_rate,marker='o',color=TEAL,linewidth=2)
+        ax.set_ylabel('Victims per 10k'); ax.set_xlabel('Year');ax.set_title('Annual shooting victim rate')
+        ax.grid(axis='y',alpha=.25);fig.tight_layout()
+        img=BytesIO();fig.savefig(img,format='png',dpi=140,bbox_inches='tight');plt.close(fig);img.seek(0)
+        story.extend([Paragraph('Historical trend',styles['CCHHeading']),Image(img,width=505,height=178)])
+    if community=='All Chicago':
+        top=data.dropna(subset=['shot_rate_per_10k']).sort_values('shot_rate_per_10k',ascending=False).head(6)
+        if not top.empty:
+            fig,ax=plt.subplots(figsize=(7.0,2.8))
+            ax.barh(top.ca_name.iloc[::-1],top.shot_rate_per_10k.iloc[::-1],color=TEAL)
+            ax.set_xlabel('Victims per 10k');fig.tight_layout()
+            img2=BytesIO();fig.savefig(img2,format='png',dpi=130,bbox_inches='tight');plt.close(fig);img2.seek(0)
+            story.extend([Paragraph('Six highest community rates',styles['CCHHeading']),Image(img2,width=505,height=202)])
+    story.extend([Spacer(1,9),Paragraph('Data definitions and limitations',styles['CCHHeading']),
+        Paragraph('Source inputs: chicago_community_area_year_merged.csv, trauma_hospitals.csv, and dashboard_map.geojson. Original agencies, publication dates, profile-variable reference years, hospital designations and travel-time methods require verification against primary sources.',styles['CCHBody']),
+        Paragraph('Victims are counts of injured or killed people, not distinct incidents. Socioeconomic profile variables may repeat across years. Estimated driving times are not EMS response times. Associations are not causal predictions. Hospital financial figures (not shown here) are hospital-wide, not firearm-specific.',styles['CCHBody']),
+        Paragraph('Research prototype | Not medical, emergency-response, or validated policy guidance.',styles['CCHBody'])])
+    pdf.build(story)
+    out.seek(0)
+    return out.getvalue()
+
+st.divider()
+st.subheader('Client report & data quality')
+with st.expander('Data source coverage and quality checks',expanded=False):
+    st.markdown('**Files currently used**')
+    st.code('data/chicago_community_area_year_merged.csv\ndata/trauma_hospitals.csv\ndata/dashboard_map.geojson',language='text')
+    st.caption('These filenames identify the bundled inputs, not verified originating agencies or collection methods.')
+    qa_fields=['shot_total','population','shot_rate_per_10k','pct_poverty','pct_unemployed','per_capita_income','profile_trauma_drive_min']
+    available=[field for field in qa_fields if field in current.columns]
+    missing_data=pd.DataFrame({'Measure':available,
+            'Available areas':[int(current[field].notna().sum()) for field in available],
+            'Missing areas':[int(current[field].isna().sum()) for field in available]})
+    st.dataframe(missing_data,hide_index=True,use_container_width=True)
+    st.caption(f'{len(current)} rows in selected year {year}; {D.ca_num.nunique()} unique community area IDs across {D.year.min()}–{D.year.max()}.')
+    dupes=int(D.duplicated(['ca_num','year']).sum())
+    bad_pops=int((D.population<=0).sum()) if 'population' in D else 0
+    st.write(f'Duplicate community-year keys after loading: {dupes}; non-positive population rows: {bad_pops}.')
+    st.warning('Verify original data agency, collection period, profile indicator reference years, hospital designations, travel-time calculation, and hospital financial reporting period before publication. Missing records are not assumed to be zero.')
+
+with st.expander('Download client-ready PDF',expanded=False):
+    st.write(f'Generate a report for **{area}**, reporting year **{year}**, trend period **{range_start}–{range_end}**. Includes a KPI summary, charts, and limitations.')
+    report_selection=(str(area),int(year),int(range_start),int(range_end))
+    if st.button('Generate PDF report',key='generate_report'):
+        try:
+            st.session_state['pdf_report_bytes']=create_client_pdf(current,D,H,year,area,range_start,range_end)
+            st.session_state['pdf_report_selection']=report_selection
+        except ImportError:
+            st.error('PDF export requires reportlab and matplotlib. Add both packages to requirements.txt.')
+        except Exception as export_error:
+            st.error(f'Could not create the PDF report for this selection: {export_error}')
+    if (st.session_state.get('pdf_report_selection') == report_selection
+            and st.session_state.get('pdf_report_bytes')):
+        st.download_button('Download Cook County Health PDF report',
+            data=st.session_state['pdf_report_bytes'],
+            file_name=f'cook_county_health_{area.lower().replace(" ","_")}_{year}.pdf',
+            mime='application/pdf',key='download_pdf')
+    else:
+        st.caption('Click Generate PDF report first. Reports are rebuilt when you change the selection.')
 
 with st.expander('Data definitions, limitations & download'):
     st.write('Merged dataset: one row per Chicago community area and shooting year. Profile variables are repeated across years and must not be treated as independent annual observations. Historical 2008–2012 indicators are labeled separately.')
