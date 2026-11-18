@@ -83,7 +83,7 @@ with t1:
     left,right=st.columns([1.55,1],gap='large')
     with left:
         st.subheader('Where are shooting victims concentrated?')
-        choices={'Victims per 10,000':'shot_rate_per_10k','Total shooting victims':'shot_total','Poverty (%)':'pct_poverty','Unemployment (%)':'pct_unemployed','Trauma drive time (min)':'profile_trauma_drive_min'}
+        choices={'Victims per 10k':'shot_rate_per_10k','Total shooting victims':'shot_total','Poverty (%)':'pct_poverty','Unemployment (%)':'pct_unemployed','Trauma drive time (min)':'profile_trauma_drive_min'}
         choice=st.radio('Map shading',list(choices),horizontal=True)
         field=choices[choice]
         values=current.set_index('ca_num')[field].to_dict()
