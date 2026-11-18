@@ -50,8 +50,63 @@ h1,h2,h3{color:#06264A!important;letter-spacing:-.025em}
 [data-testid="stMetric"]{border:1px solid #C8E2EB;border-left:4px solid #079DB5;border-radius:13px;padding:15px 17px;background:#FFFFFF;box-shadow:0 3px 12px rgba(6,38,74,.05)}
 [data-testid="stMetricLabel"]{font-size:0.95rem;font-weight:600!important;color:#36516B!important}
 [data-testid="stMetricValue"]{font-size:2.1rem;font-weight:750!important;letter-spacing:-.03em;color:#06264A!important}
-[data-testid="stTabs"] button{color:#274561!important;font-weight:600;padding:13px 12px}
-[data-testid="stTabs"] button[aria-selected="true"]{border-bottom:3px solid #079DB5!important;color:#006C83!important;background:rgba(32,181,198,.06)}
+/* Modern Cook County Health-style top navigation: navy bar + turquoise selected tab */
+[data-testid="stTabs"] [data-baseweb="tab-list"] {
+    display:flex!important;
+    gap:6px!important;
+    padding:9px!important;
+    background:#06264A!important;
+    border:1px solid #123D66!important;
+    border-radius:14px!important;
+    box-shadow:0 6px 18px rgba(6,38,74,.13)!important;
+    overflow-x:auto!important;
+    scrollbar-width:thin;
+    scrollbar-color:#20B5C6 #06264A;
+}
+[data-testid="stTabs"] [data-baseweb="tab-list"] button[role="tab"] {
+    flex:1 0 auto!important;
+    justify-content:center!important;
+    min-height:47px!important;
+    padding:12px 14px!important;
+    border:1px solid transparent!important;
+    border-radius:9px!important;
+    background:transparent!important;
+    color:#F2F9FD!important;
+    font-size:0.88rem!important;
+    font-weight:650!important;
+    line-height:1.25!important;
+    letter-spacing:.005em!important;
+    white-space:nowrap!important;
+    transition:background .18s ease,box-shadow .18s ease,color .18s ease!important;
+}
+[data-testid="stTabs"] [data-baseweb="tab-list"] button[role="tab"] * {
+    color:inherit!important;
+}
+[data-testid="stTabs"] [data-baseweb="tab-list"] button[role="tab"]:hover {
+    background:#16466F!important;
+    color:#FFFFFF!important;
+}
+[data-testid="stTabs"] [data-baseweb="tab-list"] button[role="tab"][aria-selected="true"] {
+    background:#079DB5!important;
+    border-color:#35C1D2!important;
+    color:#FFFFFF!important;
+    box-shadow:0 3px 9px rgba(0,0,0,.18)!important;
+}
+[data-testid="stTabs"] [data-baseweb="tab-highlight"],
+[data-testid="stTabs"] [data-baseweb="tab-border"] {
+    display:none!important;
+}
+[data-testid="stTabs"] [data-baseweb="tab-panel"] {
+    padding-top:1.25rem!important;
+}
+@media(max-width:900px) {
+    [data-testid="stTabs"] [data-baseweb="tab-list"] {gap:4px!important;padding:6px!important;}
+    [data-testid="stTabs"] [data-baseweb="tab-list"] button[role="tab"] {
+        font-size:.82rem!important;
+        padding:10px 12px!important;
+        min-height:42px!important;
+    }
+}
 [data-testid="stDataFrame"],[data-testid="stPlotlyChart"]{border-radius:12px;overflow:hidden}
 .stButton button[kind="primary"],button[data-testid="baseButton-primary"]{background:#079DB5;border-color:#079DB5}
 </style>''',unsafe_allow_html=True)
