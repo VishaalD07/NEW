@@ -221,11 +221,106 @@ with t3:
         a.metric('Nearest listed center',str(get(row,'profile_nearest_center')))
         b.metric('Estimated trauma drive (min)',fmt(get(row,'profile_trauma_drive_min'),1))
         c.metric('Clinics (estimate)',fmt(get(row,'profile_clinics')))
-    hospital_map=folium.Map(location=[41.84,-87.68],zoom_start=10,tiles='OpenStreetMap')
-    for _,h in H.dropna(subset=['lat','lon']).iterrows():
-        folium.Marker([h.lat,h.lon],popup=folium.Popup(f'<b>{html.escape(str(h.hospital))}</b><br>Type: {html.escape(str(h.type))}<br>Adult Level I (source): {html.escape(str(h.adult_level1_trauma))}',max_width=320),tooltip=str(h.hospital),icon=folium.Icon(color='blue',icon='plus-sign')).add_to(hospital_map)
-    st_folium(hospital_map,height=390,use_container_width=True,key='hospital_map',returned_objects=[])
-    st.caption('Hospital markers can overlap where source coordinates are approximate. Verify exact locations and designations before publication.')
+    # Interactive hospital map: highlight Stroger without duplicating its CSV entry.
+    st.markdown("#### Chicago trauma hospitals")
+    show_other = st.checkbox("Show other listed hospitals", value=True, key="show_other_hospitals")
+    focus_stroger = st.checkbox("Zoom to Stroger Hospital", value=False, key="focus_stroger")
+    stroger_lat, stroger_lon = 41.8564, -87.6663  # Approximate map coordinates
+    hospital_map = folium.Map(
+        location=[stroger_lat, stroger_lon] if focus_stroger else [41.84, -87.68],
+        zoom_start=13 if focus_stroger else 10,
+        tiles="OpenStreetMap", control_scale=True
+    )
+    other_layer = folium.FeatureGroup(name="Other listed hospitals", show=show_other)
+    stroger_layer = folium.FeatureGroup(name="Cook County / Stroger Hospital", show=True)
+
+    # Use one dedicated marker for Stroger, even if the CSV already contains it.
+    for _, hospital in H.iterrows():
+        hospital_name = str(hospital.get("hospital", "Unknown hospital"))
+        if any(alias in hospital_name.lower() for alias in
+               ("stroger", "cook county hospital")):
+            continue
+        if not show_other:
+            continue
+        lat = pd.to_numeric(hospital.get("lat"), errors="coerce")
+        lon = pd.to_numeric(hospital.get("lon"), errors="coerce")
+        if pd.isna(lat) or pd.isna(lon):
+            continue
+        hospital_type = html.escape(str(hospital.get("type", "Not specified")))
+        trauma = html.escape(str(hospital.get("adult_level1_trauma", "Not specified")))
+        popup_html = (
+            f'<div style="font-family:Arial;min-width:220px">'
+            f'<b>{html.escape(hospital_name)}</b><hr>'
+            f'Type: {hospital_type}<br>Adult Level I (dataset): {trauma}</div>'
+        )
+        folium.Marker(
+            [float(lat), float(lon)], tooltip=hospital_name,
+            popup=folium.Popup(popup_html, max_width=320),
+            icon=folium.Icon(color="blue", icon="plus-sign")
+        ).add_to(other_layer)
+
+    stroger_popup = """
+    <div style="font-family:Arial,sans-serif;min-width:275px;line-height:1.6;color:#142D4E">
+      <div style="background:#142D4E;color:white;padding:10px;border-radius:7px 7px 0 0">
+        <strong>COOK COUNTY HEALTH</strong><br>
+        John H. Stroger Jr. Hospital
+      </div>
+      <div style="padding:10px">
+        <b>Adult Level I Trauma Center</b><br>
+        1969 W. Ogden Avenue<br>Chicago, IL 60612<br>
+        Public teaching hospital · Emergency and trauma care<br>
+        <a href="https://cookcountyhealth.org/" target="_blank" rel="noopener noreferrer">
+          Cook County Health — official website</a>
+      </div>
+    </div>
+    """
+    folium.Marker(
+        [stroger_lat, stroger_lon],
+        tooltip="★ Cook County Health — Stroger Hospital",
+        popup=folium.Popup(stroger_popup, max_width=360),
+        icon=folium.Icon(color="red", icon="plus-sign")
+    ).add_to(stroger_layer)
+    other_layer.add_to(hospital_map)
+    stroger_layer.add_to(hospital_map)
+    folium.LayerControl(collapsed=False).add_to(hospital_map)
+    st_folium(
+        hospital_map, height=470, use_container_width=True,
+        key=f"hospital_map_{focus_stroger}_{show_other}", returned_objects=[]
+    )
+    st.caption("Red: Stroger Hospital · Blue: other hospitals in the dataset. "
+               "Map coordinates are approximate; confirm locations and trauma designations before publication.")
+
+    st.divider()
+    st.subheader("Cook County Health | John H. Stroger Jr. Hospital")
+    st.caption("Featured hospital · Chicago, Illinois")
+    k1, k2, k3 = st.columns(3)
+    k1.metric("Trauma designation", "Adult Level I")
+    k2.metric("Healthcare system", "Cook County Health")
+    k3.metric("Location", "Chicago, IL")
+    st.markdown(
+        "**John H. Stroger Jr. Hospital of Cook County** is a public teaching "
+        "hospital providing emergency and trauma services. "
+        "**Address:** 1969 W. Ogden Avenue, Chicago, IL 60612. "
+        "[Official Cook County Health website](https://cookcountyhealth.org/)"
+    )
+    st.info("The neighborhood shooting totals in this dashboard are not counts of "
+            "patients treated at Stroger Hospital. Hospital-specific firearm injury "
+            "counts have not been verified or added.")
+    stroger_data = H[H["hospital"].astype(str).str.contains(
+        r"Stroger|Cook County Hospital", case=False, regex=True, na=False
+    )]
+    finance_cols = [c for c in (
+        "hospital", "total_costs", "net_patient_revenue",
+        "charity_care_cost", "uncompensated_care_cost"
+    ) if c in stroger_data.columns]
+    if not stroger_data.empty and len(finance_cols) > 1:
+        st.markdown("**Stroger financial figures available in the existing dataset**")
+        st.dataframe(stroger_data[finance_cols], hide_index=True, use_container_width=True)
+        st.caption("These are hospital-wide financial fields, not firearm-injury-specific costs. "
+                   "Verify reporting periods and original sources before presenting.")
+    else:
+        st.caption("No Stroger-specific financial record is available in the current hospital CSV.")
+
     st.subheader('Hospital financial comparison')
     fields=['hospital','type','total_costs','net_patient_revenue','charity_care_cost','uncompensated_care_cost']
     st.dataframe(H[[c for c in fields if c in H.columns]],hide_index=True,use_container_width=True)
