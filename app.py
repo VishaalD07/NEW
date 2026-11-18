@@ -117,31 +117,31 @@ with t1:
         vertical_legend = f"""
         <style>
           #cch-map-legend {{
-            position:fixed; z-index:9999; top:50%; right:12px;
+            position:fixed; z-index:9999; top:50%; right:14px;
             transform:translateY(-50%); box-sizing:border-box;
-            background:rgba(255,255,255,.96); border:1px solid #cbd5e1;
-            border-radius:12px; padding:12px 10px 12px 12px;
-            box-shadow:0 4px 18px rgba(20,45,78,.18);
-            font:12px Arial,sans-serif; color:#142D4E;
+            background:transparent; border:none; border-radius:0; padding:0;
+            box-shadow:none; font:12px Arial,sans-serif; color:#142D4E;
           }}
           #cch-map-legend .legend-title {{
-            font-weight:700; font-size:12px; line-height:1.35;
-            max-width:110px; margin-bottom:10px;
+            font-weight:700; font-size:11px; line-height:1.25;
+            margin-bottom:8px; text-shadow:0 1px 2px rgba(255,255,255,.9);
           }}
-          #cch-map-legend .legend-body {{display:flex;gap:7px;height:340px;align-items:stretch;}}
+          #cch-map-legend .legend-body {{display:flex;gap:6px;height:320px;align-items:stretch;}}
           #cch-map-legend .legend-gradient {{
-            width:20px; min-width:20px; height:100%; border-radius:5px;
-            border:1px solid rgba(20,45,78,.14);
+            width:12px; min-width:12px; height:100%; border-radius:3px;
+            border:1px solid rgba(20,45,78,.18);
             background:linear-gradient(to bottom,#800026 0%,#f03b20 34%,#fec44f 68%,#fff7bc 100%);
           }}
           #cch-map-legend .legend-ticks {{
             display:flex;flex-direction:column;justify-content:space-between;
             text-align:left;white-space:nowrap;font-size:11px;
+            text-shadow:0 1px 2px rgba(255,255,255,.92);
           }}
           @media(max-width:560px) {{
-            #cch-map-legend {{right:6px;padding:8px;}}
-            #cch-map-legend .legend-body {{height:260px;}}
-            #cch-map-legend .legend-title {{max-width:85px;font-size:10px;}}
+            #cch-map-legend {{right:8px;}}
+            #cch-map-legend .legend-body {{height:240px;}}
+            #cch-map-legend .legend-title {{font-size:10px;}}
+            #cch-map-legend .legend-gradient {{width:10px; min-width:10px;}}
           }}
         </style>
         <div id="cch-map-legend" aria-label="Vertical map legend">
