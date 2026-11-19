@@ -327,8 +327,8 @@ with t1:
         </div>
         """
         mp.get_root().html.add_child(folium.Element(vertical_legend))
-        st_folium(mp,height=520,use_container_width=True,key=f'community_map_{year}_{choice}_{show_county}_{county_view}',returned_objects=['last_active_drawing'])
-        st.caption('Click any neighborhood polygon for its detailed popup. Use the community selector on the left to update every chart.')
+        st_folium(mp,height=520,use_container_width=True,key=f'community_map_{year}_{choice}',returned_objects=['last_active_drawing'])
+        st.caption('Click any Chicago community polygon for its detailed popup. The dashed purple boundary shows Cook County, including suburban areas not covered by these shooting datasets. Use the left selector to update all charts.')
     with right:
         st.subheader('Top 10 community areas')
         top=current.nlargest(10,'shot_total').sort_values('shot_total')
