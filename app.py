@@ -301,6 +301,36 @@ with t2:
     st.subheader('Socioeconomic factors and gun violence')
     indicators={'Poverty (%)':'pct_poverty','Unemployment (%)':'pct_unemployed','Income per person ($)':'per_capita_income','Rent burden (%)':'pct_rent_burdened','Eviction filing rate':'eviction_filing_rate'}
     factor=st.selectbox('Compare shooting rates with',list(indicators));col=indicators[factor]
+    # Short, plain-English definitions; calculated rates come from the source data.
+    # We do not recompute them without the original numerator, denominator, or source metadata.
+    factor_explanations = {
+        'Poverty (%)': (
+            'People living below the poverty threshold.',
+            '(People below the poverty threshold ÷ people covered by the poverty measure) × 100.'
+        ),
+        'Unemployment (%)': (
+            'People in the labor force who are unemployed and looking for work.',
+            '(Unemployed people ÷ total labor force) × 100.'
+        ),
+        'Income per person ($)': (
+            'Average income per person, not per household.',
+            'Total income of residents ÷ total population.'
+        ),
+        'Rent burden (%)': (
+            'Renter households spending a large share of income on housing, usually 30% or more.',
+            '(Rent-burdened renter households ÷ renter households assessed) × 100.'
+        ),
+        'Eviction filing rate': (
+            'How frequently eviction cases are filed against renter households.',
+            'Eviction filings ÷ renter households; the dataset source determines whether the result is per 100, per 1,000, or another unit.'
+        ),
+    }
+    meaning, calculation = factor_explanations[factor]
+    st.info(f'**{factor} — Meaning:** {meaning}  \n**How it is calculated:** {calculation}')
+    st.caption('Definitions are general. Confirm each indicator’s original source, reference year and denominator before interpreting its reported values.')
+    with st.expander('See definitions and calculations for all five factors'):
+        for factor_name, (short_meaning, short_formula) in factor_explanations.items():
+            st.markdown(f'**{factor_name}:** {short_meaning}  \n*Calculation:* {short_formula}')
     valid=current.dropna(subset=[col,'shot_rate_per_10k'])
     fig=px.scatter(valid,x=col,y='shot_rate_per_10k',size='shot_total',hover_name='ca_name',color='shot_rate_per_10k',color_continuous_scale=[(0,'#DDF2F6'),(.5,TEAL),(1,RED)],labels={col:factor,'shot_rate_per_10k':'Shooting victims per 10,000'},height=410)
     st.plotly_chart(fig,use_container_width=True)
