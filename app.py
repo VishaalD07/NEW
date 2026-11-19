@@ -56,33 +56,53 @@ h1,h2,h3 { letter-spacing:-.025em; }
 }
 [data-testid="stMetricLabel"] { font-size:.95rem; font-weight:600!important; }
 [data-testid="stMetricValue"] { font-size:2.05rem; font-weight:750!important; }
-/* Fixed dark/navy pill tabs in either appearance mode; all labels always white. */
-[data-testid="stTabs"] [role="tablist"] {
- display:flex!important; gap:6px!important; padding:8px!important;
+/* Accessible navigation tabs: explicit colors in light AND dark modes.
+   Streamlit renders BaseWeb tabs with nested Markdown, which may inherit
+   the page theme unless both the tab and its descendants are targeted. */
+[data-testid="stTabs"] [role="tablist"],
+[data-testid="stTabs"] [data-baseweb="tab-list"] {
+ display:flex!important; gap:7px!important; padding:8px!important;
  border-radius:14px!important; background:#06264A!important;
  border:1px solid #1B4C73!important; overflow-x:auto!important;
+ scrollbar-width:thin;
 }
-[data-testid="stTabs"] button[role="tab"] {
- flex:1 0 auto!important; padding:10px 13px!important; min-height:46px!important;
+[data-testid="stTabs"] button[role="tab"],
+[data-testid="stTabs"] [data-baseweb="tab"] {
+ flex:1 0 auto!important; padding:11px 14px!important; min-height:46px!important;
  border-radius:9px!important; border:1px solid #2D587A!important;
- background:#123C64!important; color:#FFFFFF!important;
- -webkit-text-fill-color:#FFFFFF!important; opacity:1!important; font-weight:650!important;
+ background:#123C64!important; background-color:#123C64!important;
+ color:#FFFFFF!important; -webkit-text-fill-color:#FFFFFF!important;
+ opacity:1!important; font-weight:650!important;
+ text-shadow:none!important;
 }
-[data-testid="stTabs"] button[role="tab"] *,
-[data-testid="stTabs"] button[role="tab"] p,
-[data-testid="stTabs"] button[role="tab"] span {
- color:#FFFFFF!important; -webkit-text-fill-color:#FFFFFF!important; opacity:1!important;
+/* Override any Streamlit theme rules on Markdown labels inside tabs. */
+[data-testid="stTabs"] [role="tab"] *,
+[data-testid="stTabs"] [data-baseweb="tab"] *,
+[data-testid="stTabs"] [role="tab"] [data-testid="stMarkdownContainer"] *,
+[data-testid="stTabs"] [role="tab"] p,
+[data-testid="stTabs"] [role="tab"] span,
+[data-testid="stTabs"] [role="tab"] div {
+ color:#FFFFFF!important; -webkit-text-fill-color:#FFFFFF!important;
+ opacity:1!important;
 }
-[data-testid="stTabs"] button[role="tab"]:hover { background:#176486!important; }
-[data-testid="stTabs"] button[role="tab"][aria-selected="true"] {
- background:#079DB5!important; border-color:#6CE3EF!important;
+[data-testid="stTabs"] [role="tab"]:hover,
+[data-testid="stTabs"] [data-baseweb="tab"]:hover {
+ background:#176486!important; background-color:#176486!important;
+}
+[data-testid="stTabs"] [role="tab"][aria-selected="true"],
+[data-testid="stTabs"] [data-baseweb="tab"][aria-selected="true"] {
+ background:#087F93!important; background-color:#087F93!important;
+ border-color:#6CE3EF!important;
+}
+[data-testid="stTabs"] [role="tab"]:focus-visible {
+ outline:3px solid #79EAF2!important; outline-offset:2px!important;
 }
 [data-testid="stTabs"] [data-baseweb="tab-highlight"],
 [data-testid="stTabs"] [data-baseweb="tab-border"] { display:none!important; }
 [data-testid="stTabs"] [role="tabpanel"] { padding-top:1.1rem!important; }
 [data-testid="stDataFrame"], [data-testid="stPlotlyChart"] { border-radius:12px; overflow:hidden; }
 @media(max-width:900px) {
- [data-testid="stTabs"] button[role="tab"] { font-size:.82rem!important; padding:9px 11px!important; }
+ [data-testid="stTabs"] [role="tab"] { font-size:.82rem!important; padding:9px 11px!important; }
 }
 </style>""",unsafe_allow_html=True)
 
