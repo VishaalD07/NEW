@@ -32,6 +32,31 @@ def load():
     for f in geo['features']: f['properties']['ca_num']=int(f['properties']['ca_num'])
     return d,h,geo
 D,H,G=load()
+# Optional official county boundary overlay. The shooting dataset remains Chicago-only.
+# Source: Cook County GIS ArcGIS service, Simplified Cook County Boundary (layer 199).
+@st.cache_data(ttl=86400, show_spinner=False)
+def load_cook_county_boundary():
+    local_boundary = ROOT / 'cook_county_boundary.geojson'
+    try:
+        if local_boundary.is_file():
+            geo = json.loads(local_boundary.read_text(encoding='utf-8'))
+        else:
+            from urllib.request import Request, urlopen
+            from urllib.parse import urlencode
+            service = ('https://services.arcgis.com/F7DSX1DSNSiWmOqh/ArcGIS/rest/services/'
+                       'Simplified_Cook_County_Boundary/FeatureServer/199/query')
+            query = urlencode({'where': '1=1', 'outFields': '*',
+                               'returnGeometry': 'true', 'outSR': '4326', 'f': 'geojson'})
+            request = Request(service + '?' + query, headers={'User-Agent': 'CookCountyHealthDashboard/1.0'})
+            with urlopen(request, timeout=10) as response:
+                geo = json.load(response)
+        if (geo.get('type') == 'FeatureCollection' and geo.get('features')
+                and all(feature.get('geometry') for feature in geo['features'])):
+            return geo, None
+        return None, 'The county GIS service did not provide a valid boundary.'
+    except Exception as exc:
+        return None, f'Could not load county boundary: {exc}'
+
 st.markdown("""<style>
 /* Cook County Health-inspired theme: respect Streamlit light/dark surface variables. */
 :root { --cch-navy:#06264A; --cch-teal:#079DB5; --cch-red:#C84459; }
@@ -200,7 +225,23 @@ with t1:
         import branca.colormap as bcm
         cmap=bcm.LinearColormap(['#fff7bc','#fec44f','#f03b20','#800026'],vmin=vmin,vmax=max(vmax,vmin+.01),caption=choice)
         show_trauma_on_main=st.checkbox('Show listed trauma hospitals on this map',value=False,key='main_trauma_markers')
+        show_county=st.checkbox('Show Cook County boundary', value=True, key='cook_county_boundary')
+        county_view=st.checkbox('Zoom out to all of Cook County', value=False, key='cook_county_view',
+                                help='Displays county geography; shooting figures still describe Chicago only.')
         mp=folium.Map(location=[41.84,-87.68],zoom_start=10,tiles='OpenStreetMap',control_scale=True)
+        county_geo, county_error = (load_cook_county_boundary() if (show_county or county_view)
+                                    else (None, None))
+        if county_geo:
+            if county_view:
+                # GeoJson bounds are computed from the actual county geometry, not estimated coordinates.
+                bounds=folium.GeoJson(county_geo).get_bounds()
+                if bounds:
+                    mp.fit_bounds(bounds, padding=(15,15))
+        elif county_error:
+            st.info('Cook County boundary temporarily unavailable. The Chicago community map still works. '
+                    'You can also place cook_county_boundary.geojson in the data/ folder for offline use.')
+        st.caption('Purple dashed line = Cook County boundary; colored polygons = Chicago community areas with available data. '
+                   'No county-wide shooting estimates are implied.')
         lookup=current.set_index('ca_num')
         def style(feature):
             cid=int(feature['properties']['ca_num']);val=values.get(cid,np.nan)
@@ -213,6 +254,14 @@ with t1:
             details=''.join(f'<tr><td style="padding:3px 8px">{html.escape(k)}</td><td><b>{html.escape(str(val))}</b></td></tr>' for k,val in fields)
             popup=folium.Popup(f'<div style="font:13px Arial;width:315px"><h3>{html.escape(str(r.ca_name))} · {year}</h3><table>{details}</table><p style="font-size:11px">Source definitions and years require verification. Travel time is estimated, not EMS response time.</p></div>',max_width=380)
             folium.GeoJson(feature,style_function=style,highlight_function=lambda f:{'weight':3,'color':'#111827','fillOpacity':.88},tooltip=f'{r.ca_name}: {choice} {fmt(get(r,field),1)}',popup=popup).add_to(mp)
+        # Draw the county outline on top of the Chicago polygons for visibility.
+        if show_county and county_geo:
+            folium.GeoJson(
+                county_geo, name='Cook County boundary (outline)',
+                style_function=lambda f: {'color':'#6D4AC6','weight':4,'opacity':1,
+                                          'fillOpacity':0,'dashArray':'9,5'},
+                tooltip='Cook County boundary'
+            ).add_to(mp)
         if show_trauma_on_main and {'hospital','lat','lon'}.issubset(H.columns):
             trauma_overlay=folium.FeatureGroup(name='Listed hospitals',show=True)
             for _, hosp in H.iterrows():
@@ -278,7 +327,7 @@ with t1:
         </div>
         """
         mp.get_root().html.add_child(folium.Element(vertical_legend))
-        st_folium(mp,height=520,use_container_width=True,key=f'community_map_{year}_{choice}',returned_objects=['last_active_drawing'])
+        st_folium(mp,height=520,use_container_width=True,key=f'community_map_{year}_{choice}_{show_county}_{county_view}',returned_objects=['last_active_drawing'])
         st.caption('Click any neighborhood polygon for its detailed popup. Use the community selector on the left to update every chart.')
     with right:
         st.subheader('Top 10 community areas')
