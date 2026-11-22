@@ -447,20 +447,22 @@ with t3:
     st.markdown("#### Chicago trauma hospitals")
     show_other = st.checkbox("Show other listed hospitals", value=True, key="show_other_hospitals")
     focus_stroger = st.checkbox("Zoom to Stroger Hospital", value=False, key="focus_stroger")
-    show_catchments = st.checkbox(
-    "Show estimated hospital coverage areas",
-    value=False,
-    key="show_hospital_catchments"
-)
 
-coverage_minutes = st.slider(
-    "Coverage threshold (minutes)",
-    min_value=5,
-    max_value=30,
-    value=15,
-    step=5,
-    disabled=not show_catchments
-)
+    show_catchments = st.checkbox(
+        "Show illustrative hospital coverage areas",
+        value=False,
+        key="show_hospital_catchments"
+    )
+
+    coverage_minutes = st.slider(
+        "Coverage threshold (minutes)",
+        min_value=5,
+        max_value=30,
+        value=15,
+        step=5,
+        disabled=not show_catchments
+    )
+
     stroger_lat, stroger_lon = 41.8564, -87.6663  # Approximate map coordinates
     hospital_map = folium.Map(
         location=[stroger_lat, stroger_lon] if focus_stroger else [41.84, -87.68],
