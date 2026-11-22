@@ -518,6 +518,38 @@ with t3:
         popup=folium.Popup(stroger_popup, max_width=360),
         icon=folium.Icon(color="darkblue", icon="plus-sign")
     ).add_to(stroger_layer)
+    
+    if show_catchments:
+        coverage_layer = folium.FeatureGroup(
+            name="Illustrative hospital coverage",
+            show=True
+        )
+
+        for _, hospital in H.iterrows():
+            lat = pd.to_numeric(hospital.get("lat"), errors="coerce")
+            lon = pd.to_numeric(hospital.get("lon"), errors="coerce")
+
+            if pd.isna(lat) or pd.isna(lon):
+                continue
+
+            folium.Circle(
+                location=[float(lat), float(lon)],
+                radius=3000,
+                color="#079DB5",
+                weight=2,
+                fill=True,
+                fill_color="#079DB5",
+                fill_opacity=0.15,
+                tooltip=str(hospital.get("hospital", "Hospital"))
+            ).add_to(coverage_layer)
+
+        coverage_layer.add_to(hospital_map)
+
+        st.caption(
+            "Illustrative 3 km hospital buffers. "
+            "These are not verified driving-time catchment areas."
+        )
+
     other_layer.add_to(hospital_map)
     stroger_layer.add_to(hospital_map)
     folium.LayerControl(collapsed=False).add_to(hospital_map)
