@@ -192,7 +192,7 @@ area=st.sidebar.selectbox('Focus community area',['All Chicago']+areas,key='sele
 st.sidebar.caption(f'{D.ca_num.nunique()} Chicago community areas · {D.year.min()}–{D.year.max()} shooting data')
 st.title('Chicago Gun Violence & Healthcare Dashboard')
 st.caption('Explore how shooting patterns, neighborhood conditions, and access to healthcare differ across Chicago. Select a year and community area in the sidebar.')
-t1,t2,t3,t4,t5=st.tabs(['🗺️ Overview & Map','📊 Socioeconomic Factors & Regression','🏥 Healthcare & Hospital Impact','🏘️ Neighborhood Comparison','📚 Methods & Limitations'])
+t1,t2,t3,t4,t5=st.tabs(['🗺️ Overview & Map','📊 Socioeconomic Factors & Regression','🏥 Healthcare & Hospital Impact','🏘️ Neighborhood Comparison','📚 Glossary & Resources'])
 
 row=current[current.ca_name==area].iloc[0] if area!='All Chicago' else None
 selected=current if row is None else current[current.ca_name==area]
@@ -949,7 +949,7 @@ def create_client_pdf(data, all_history, hospitals, reporting_year, community, s
             img2=BytesIO();fig.savefig(img2,format='png',dpi=130,bbox_inches='tight');plt.close(fig);img2.seek(0)
             story.extend([Paragraph('Six highest community rates',styles['CCHHeading']),Image(img2,width=505,height=202)])
     story.extend([Spacer(1,9),Paragraph('Data definitions and limitations',styles['CCHHeading']),
-        Paragraph('Source inputs: chicago_community_area_year_merged.csv, trauma_hospitals.csv, and dashboard_map.geojson. Original agencies, publication dates, profile-variable reference years, hospital designations and travel-time methods require verification against primary sources.',styles['CCHBody']),
+        Paragraph('Public references: Chicago Police Department / City of Chicago Violence Reduction victimizations dataset; Law Center for Better Housing Chicago Evictions Data Portal; Chicago Health Atlas; U.S. Census Bureau ACS. Individual measures must be reconciled with their original releases.',styles['CCHBody']),
         Paragraph('Victims are counts of injured or killed people, not distinct incidents. Socioeconomic profile variables may repeat across years. Estimated driving times are not EMS response times. Associations are not causal predictions. Hospital financial figures (not shown here) are hospital-wide, not firearm-specific.',styles['CCHBody']),
         Paragraph('Research prototype | Not medical, emergency-response, or validated policy guidance.',styles['CCHBody'])])
     pdf.build(story)
@@ -958,8 +958,7 @@ def create_client_pdf(data, all_history, hospitals, reporting_year, community, s
 
 st.divider()
 with t5:
-    st.subheader('How to read this dashboard')
-    st.caption('Data sources, calculations, research methods, and limitations — explained in plain language')
+    st.subheader('Glossary & Resources')
     st.markdown('**Start here:** The dashboard describes recorded shooting victims and compares community-level patterns. It does not identify why an individual shooting occurred or predict the effects of a policy.')
     st.markdown('### At a glance')
     st.markdown('''- **Shooting victims** counts people, not separate shooting incidents.
@@ -968,18 +967,34 @@ with t5:
 - **Hospital costs** describe whole hospitals, not the costs of treating gunshot patients.
 - **Model findings** show associations, not proof of causes.''')
     st.markdown('''This dashboard integrates Chicago community-area shooting-victim data, neighborhood indicators, hospital records, and geographic boundaries. The information supports **exploratory comparisons**, not causal conclusions, clinical decisions, or estimates of the cost of individual gunshot injuries.''')
-    st.markdown('### 1. Where does the information come from?')
-    st.write('The dashboard reads several project data files. The table explains what each file contributes and what still needs to be checked against original sources.')
-    source_inventory = pd.DataFrame([
-        {'Input file':'chicago_community_area_year_merged.csv','Used for':'Shooting victims, community populations, socioeconomic indicators and estimated access','Coverage / verification':'Community-area by year; source agency and variable reference years require verification'},
-        {'Input file':'trauma_hospitals.csv','Used for':'Hospital locations, trauma designation fields and hospital-wide finances','Coverage / verification':'Hospital list and financial reporting periods require verification'},
-        {'Input file':'dashboard_map.geojson','Used for':'Chicago community-area polygons','Coverage / verification':'Check area IDs and boundary vintage'},
-        {'Input file':'hospital_coverage.geojson (optional)','Used for':'Illustrative 5–30-minute driving-area polygons','Coverage / verification':'Confirm routing method, assumptions and hospital coverage'},
-        {'Input file':'cook_county_boundary.geojson (optional)','Used for':'Cook County outline on the map','Coverage / verification':'May be loaded from county GIS service; does not extend shooting-data coverage'}
-    ])
-    for _, source in source_inventory.iterrows():
-        st.markdown(f"**{source['Used for']}**  \nFile: `{source['Input file']}`  \n*Note:* {source['Coverage / verification']}")
-    st.caption('These are the actual filenames referenced by this application, not a verified list of original agencies. Do not describe the files as official agency publications without checking their metadata.')
+    st.markdown('### 1. Data sources and original publications')
+    st.write('Explore the organizations and original public resources relevant to the dashboard. A source link identifies the publication; matching each displayed measure to its exact release is part of our data audit.')
+    sources = [
+        ('Chicago Police Department / City of Chicago',
+         'Violence Reduction — Victims of Homicides and Non-Fatal Shootings',
+         'https://data.cityofchicago.org/d/gumc-mgzr',
+         'Primary reference for recorded fatal and nonfatal shooting victimizations.'),
+        ('Law Center for Better Housing (LCBH)',
+         'Chicago Evictions Data Portal — Release 2 and methodology',
+         'https://eviction.lcbh.org/data/methodology',
+         'Historical eviction filings and rates. Release 2 covers 2010–2019; do not treat these figures as current-year estimates.'),
+        ('Chicago Health Atlas', 'Community health and social indicators',
+         'https://chicagohealthatlas.org/',
+         'Potential original source for community-level health and social indicators; exact indicator exports must be matched.'),
+        ('U.S. Census Bureau', 'American Community Survey (ACS)',
+         'https://www.census.gov/programs-surveys/acs',
+         'Population and socioeconomic estimates; the exact ACS vintage used in the merged data must be established.'),
+        ('City of Chicago', 'Community Area Boundaries',
+         'https://data.cityofchicago.org/d/cauq-8yn6',
+         'Geographic reference for the 77 Chicago community areas.'),
+        ('Cook County GIS', 'Cook County boundary GIS service',
+         'https://services.arcgis.com/F7DSX1DSNSiWmOqh/ArcGIS/rest/services/Simplified_Cook_County_Boundary/FeatureServer/199',
+         'County outline overlay only; shooting figures cover Chicago community areas.')
+    ]
+    for agency, title, url, purpose in sources:
+        st.markdown(f'**{agency} — [{title}]({url})**  \n{purpose}')
+    with st.expander('Additional healthcare and finance source documentation'):
+        st.write('Hospital locations, trauma designations, drive-time polygons, clinic counts, and financial figures need exact record-level provenance before a specific agency or reporting year can be attributed to them. The uploaded application code alone does not identify those original releases.')
     k1,k2,k3,k4=st.columns(4)
     k1.metric('Community areas',fmt(D.ca_num.nunique()))
     k2.metric('Years represented',f'{D.year.min()}–{D.year.max()}')
@@ -1007,12 +1022,11 @@ with t5:
         st.markdown('''**Access:** Community profile driving-time estimates and optional 5–30-minute polygons illustrate geographic reach to listed hospitals. They are not ambulance response times, patient transport times, or observed patient catchment areas.
 
 **Finances:** Hospital records show hospital-wide financial indicators. They cannot establish the cost, reimbursement, uncompensated care, or net financial loss attributable specifically to gunshot patients. Financial reporting years may differ from shooting years.''')
-    st.markdown('### 3. How complete is the information?')
-    st.write('Check which measures have values for the selected reporting year. Missing values mean the dashboard cannot display a reliable value, not that the result was zero.')
+    st.markdown('### 3. Data coverage')
+    st.write('See which indicators are available for the selected year.')
     with st.expander('View completeness checks and technical details',expanded=False):
         st.markdown('**Files currently used**')
         st.code('data/chicago_community_area_year_merged.csv\ndata/trauma_hospitals.csv\ndata/dashboard_map.geojson',language='text')
-        st.caption('These filenames identify the bundled inputs, not verified originating agencies or collection methods.')
         qa_fields=['shot_total','population','shot_rate_per_10k','pct_poverty','pct_unemployed','per_capita_income','profile_trauma_drive_min']
         available=[field for field in qa_fields if field in current.columns]
         missing_data=pd.DataFrame({'Measure':available,
@@ -1023,14 +1037,12 @@ with t5:
         dupes=int(D.duplicated(['ca_num','year']).sum())
         bad_pops=int((D.population<=0).sum()) if 'population' in D else 0
         st.write(f'Duplicate community-year keys after loading: {dupes}; non-positive population rows: {bad_pops}.')
-        st.warning('Verify original data agency, collection period, profile indicator reference years, hospital designations, travel-time calculation, and hospital financial reporting period before publication. Missing records are not assumed to be zero.')
 
 
-    st.markdown('### 4. What should users be careful about?')
+    st.markdown('### 4. Understanding the findings')
     st.write('These limitations matter when comparing neighborhoods or using findings to guide further research.')
     limitations = [
         ('Recent eviction records','Community-area eviction filing records for 2020–2025 have been requested but are not available in the project inputs; historical eviction values should not be interpreted as recent annual observations.'),
-        ('Coverage and reporting','Shooting/death coverage, especially the most recent year, and population denominators need reconciliation with original sources.'),
         ('Indicator timing','Socioeconomic estimates may cover multi-year reference periods or be repeated across reporting years.'),
         ('Geographic interpretation','Community-area averages conceal variation within areas and do not identify individual risk.'),
         ('Healthcare access','Modeled travel reach excludes observed ambulance dispatch, traffic conditions, treatment routing and patient origin.'),
@@ -1039,7 +1051,7 @@ with t5:
     ]
     for heading, explanation in limitations:
         st.markdown(f'**{heading}.** {explanation}')
-    st.markdown('### 5. Explore the data fields and download files')
+    st.markdown('### 5. Glossary and downloads')
     st.write('The data dictionary explains the column names used in the downloadable research files.')
     dictionary = pd.DataFrame([
         ('ca_num','Chicago community-area identifier'),('ca_name','Community-area name'),('year','Shooting reporting year'),
@@ -1056,7 +1068,6 @@ with t5:
         d1,d2=st.columns(2)
         d1.download_button('Download merged dataset',D.to_csv(index=False).encode('utf-8'),file_name='chicago_community_area_year_merged.csv',mime='text/csv',key='methods_merged')
         d2.download_button('Download selected-year data',current.to_csv(index=False).encode('utf-8'),file_name=f'chicago_{year}.csv',mime='text/csv',key='methods_year')
-    st.info('For research interpretation only. Verify source agencies, definitions, publication dates, and data coverage before external distribution.')
 
 with st.sidebar.expander('Download dashboard report (PDF)',expanded=False):
     st.write(f'Generate a report for **{area}**, reporting year **{year}**, trend period **{range_start}–{range_end}**. Includes a KPI summary, charts, and limitations.')
