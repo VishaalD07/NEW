@@ -958,11 +958,8 @@ def create_client_pdf(data, all_history, hospitals, reporting_year, community, s
 
 st.divider()
 with t5:
-    st.header('Glossary & Resources')
-    st.write('New to the terms on this dashboard? Start with the glossary, then explore the public resources that help explain Chicago gun violence, community conditions, and healthcare access.')
-
-    st.subheader('Glossary')
-    st.write('Common terms used throughout the dashboard, explained in everyday language.')
+    st.write('Understand key terms and explore the public sources behind Chicago community data.')
+    st.subheader('Key terms')
     glossary = [
         ('Shooting victims', 'People recorded as injured or killed by a shooting. One incident may involve more than one victim.'),
         ('Fatal shooting', 'A shooting in which a victim died.'),
@@ -983,7 +980,7 @@ with t5:
 
     st.divider()
     st.subheader('Where does the information come from?')
-    st.write('Explore the public organizations and resources relevant to the dashboard. Each link explains the topic rather than opening a raw data file. We are still matching individual dashboard indicators to the exact source releases used to build the dataset.')
+    st.write('Learn what each organization provides and explore its public information.')
     resources = [
         ('Gun violence in Chicago', 'The City of Chicago publishes records of fatal and nonfatal shooting victimizations. These records help explain how shootings vary across communities.', 'City of Chicago — Violence Reduction Victimization Data', 'Explore shooting data', 'https://data.cityofchicago.org/Public-Safety/Violence-Reduction-Victims-of-Homicides-and-Non-Fa/gumc-mgzr'),
         ('Housing and evictions', 'The Law Center for Better Housing provides historical information about eviction filings across Chicago communities. The linked Release 2 material covers 2010–2019.', 'Law Center for Better Housing (LCBH)', 'Explore eviction data', 'https://eviction.lcbh.org/data/download'),
@@ -997,10 +994,6 @@ with t5:
         st.write(description)
         st.caption(f'Source: {agency}')
         st.markdown(f'[{label}]({url})')
-    with st.expander('Additional source details'):
-        st.write('Some source pages provide background information or dataset catalogs rather than the exact version used in this project. Original source files, reporting years, and transformations are being traced from the data preparation scripts.')
-        st.write('Hospital locations, trauma designations, clinic counts, travel-time calculations, and hospital financial figures require source-specific documentation before we can attribute individual measures to a particular publication.')
-        st.write('The county boundary is an overlay, not a source for shooting counts. The GIS resource above is a public data portal rather than a direct technical FeatureServer endpoint.')
 
     st.divider()
     with st.expander('How the dashboard calculates and compares information'):
