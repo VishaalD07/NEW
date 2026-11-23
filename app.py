@@ -24,7 +24,8 @@ def load():
     d=pd.read_csv(ROOT/'chicago_community_area_year_merged.csv')
     h=pd.read_csv(ROOT/'trauma_hospitals.csv')
     geo=json.loads((ROOT/'dashboard_map.geojson').read_text())
-        coverage_path = ROOT / 'hospital_coverage.geojson'
+    
+    coverage_path = ROOT / 'hospital_coverage.geojson'
     coverage_geo = (
         json.loads(coverage_path.read_text())
         if coverage_path.exists()
