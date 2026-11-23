@@ -958,116 +958,70 @@ def create_client_pdf(data, all_history, hospitals, reporting_year, community, s
 
 st.divider()
 with t5:
-    st.subheader('Glossary & Resources')
-    st.markdown('**Start here:** The dashboard describes recorded shooting victims and compares community-level patterns. It does not identify why an individual shooting occurred or predict the effects of a policy.')
-    st.markdown('### At a glance')
-    st.markdown('''- **Shooting victims** counts people, not separate shooting incidents.
-- **Victims per 10,000** makes comparisons fairer between communities of different sizes.
-- **Estimated driving time** describes modeled access to listed hospitals, not ambulance response time.
-- **Hospital costs** describe whole hospitals, not the costs of treating gunshot patients.
-- **Model findings** show associations, not proof of causes.''')
-    st.markdown('''This dashboard integrates Chicago community-area shooting-victim data, neighborhood indicators, hospital records, and geographic boundaries. The information supports **exploratory comparisons**, not causal conclusions, clinical decisions, or estimates of the cost of individual gunshot injuries.''')
-    st.markdown('### 1. Data sources and original publications')
-    st.write('Explore the organizations and original public resources relevant to the dashboard. A source link identifies the publication; matching each displayed measure to its exact release is part of our data audit.')
-    sources = [
-        ('Chicago Police Department / City of Chicago',
-         'Violence Reduction — Victims of Homicides and Non-Fatal Shootings',
-         'https://data.cityofchicago.org/d/gumc-mgzr',
-         'Primary reference for recorded fatal and nonfatal shooting victimizations.'),
-        ('Law Center for Better Housing (LCBH)',
-         'Chicago Evictions Data Portal — Release 2 and methodology',
-         'https://eviction.lcbh.org/data/methodology',
-         'Historical eviction filings and rates. Release 2 covers 2010–2019; do not treat these figures as current-year estimates.'),
-        ('Chicago Health Atlas', 'Community health and social indicators',
-         'https://chicagohealthatlas.org/',
-         'Potential original source for community-level health and social indicators; exact indicator exports must be matched.'),
-        ('U.S. Census Bureau', 'American Community Survey (ACS)',
-         'https://www.census.gov/programs-surveys/acs',
-         'Population and socioeconomic estimates; the exact ACS vintage used in the merged data must be established.'),
-        ('City of Chicago', 'Community Area Boundaries',
-         'https://data.cityofchicago.org/d/cauq-8yn6',
-         'Geographic reference for the 77 Chicago community areas.'),
-        ('Cook County GIS', 'Cook County boundary GIS service',
-         'https://services.arcgis.com/F7DSX1DSNSiWmOqh/ArcGIS/rest/services/Simplified_Cook_County_Boundary/FeatureServer/199',
-         'County outline overlay only; shooting figures cover Chicago community areas.')
+    st.header('Glossary & Resources')
+    st.write('New to the terms on this dashboard? Start with the glossary, then explore the public resources that help explain Chicago gun violence, community conditions, and healthcare access.')
+
+    st.subheader('Glossary')
+    st.write('Common terms used throughout the dashboard, explained in everyday language.')
+    glossary = [
+        ('Shooting victims', 'People recorded as injured or killed by a shooting. One incident may involve more than one victim.'),
+        ('Fatal shooting', 'A shooting in which a victim died.'),
+        ('Nonfatal shooting', 'A shooting in which a victim survived.'),
+        ('Victims per 10,000 residents', 'The number of shooting victims relative to population. This makes it easier to compare communities of different sizes.'),
+        ('Community area', 'One of Chicago’s 77 officially defined community areas.'),
+        ('Poverty rate', 'The share of people whose income is below the official poverty threshold.'),
+        ('Unemployment rate', 'The share of people in the labor force who do not have a job and are looking for work.'),
+        ('Income per person', 'Total income divided by the population; not the same as household income.'),
+        ('Rent burden', 'The share of renter households spending a substantial portion of their income on housing, commonly 30% or more.'),
+        ('Eviction filing', 'A court case filed to seek eviction; a filing does not necessarily mean a household was evicted.'),
+        ('Trauma center', 'A hospital with specialized resources to treat serious injuries.'),
+        ('Estimated driving time', 'A modeled estimate of travel time to a listed hospital, not an actual ambulance response time.'),
+        ('Statistical association', 'A relationship observed in the data; it does not by itself show that one factor causes another.'),
     ]
-    for agency, title, url, purpose in sources:
-        st.markdown(f'**{agency} — [{title}]({url})**  \n{purpose}')
-    with st.expander('Additional healthcare and finance source documentation'):
-        st.write('Hospital locations, trauma designations, drive-time polygons, clinic counts, and financial figures need exact record-level provenance before a specific agency or reporting year can be attributed to them. The uploaded application code alone does not identify those original releases.')
-    k1,k2,k3,k4=st.columns(4)
-    k1.metric('Community areas',fmt(D.ca_num.nunique()))
-    k2.metric('Years represented',f'{D.year.min()}–{D.year.max()}')
-    k3.metric('Community-year rows',fmt(len(D)))
-    k4.metric('Hospitals in file',fmt(len(H)))
-    st.markdown('### 2. How are the numbers calculated?')
-    st.write('The main comparison measure is shooting victims per 10,000 residents. For example, 20 victims among 10,000 residents is a rate of 20 per 10,000.')
-    with st.expander('Definitions and data preparation',expanded=False):
-        st.markdown('''**Unit of analysis:** One community area in one reporting year. The app removes duplicate community-area/year keys on loading and coerces available numerical fields to numbers. Some socioeconomic profile fields may repeat across years rather than represent new annual measurements.
+    for term, meaning in glossary:
+        st.markdown(f'**{term}**  \n{meaning}')
 
-**Shooting victims:** People recorded as fatally or nonfatally shot; this is not necessarily the number of distinct incidents.
-
-**Victims per 10,000 residents:** `(shooting victims / population) × 10,000`. For all-Chicago summaries, victims and populations are summed before calculating the rate.
-
-**Year-over-year change:** Current annual rate minus the previous annual rate for the same community. Percentage change is computed only when the prior rate is greater than zero.
-
-**Socioeconomic variables:** Poverty, unemployment, income per person, rent burden, and eviction filing rate are displayed as provided in the merged file. Source reference periods, denominators and eviction rate units require validation.''')
-    with st.expander('How the statistical model and sliders work',expanded=False):
-        st.markdown('''**Current model:** Exploratory Poisson generalized linear model of shooting-victim counts with poverty and unemployment percentages, reporting-year indicators, and a log-population offset. The app reports heteroskedasticity-robust (HC1) standard errors, fitted rate ratios and a Pearson dispersion diagnostic. When dispersion is high, it offers an exploratory negative-binomial comparison.
-
-**Observed versus estimated:** The scatterplot compares actual victim counts with the model's in-sample estimates, not a direct poverty-versus-shootings relationship.
-
-**What-if controls:** Sliders change model inputs and display the relative fitted rate. They **do not** estimate the effect of a real intervention. Repeated area observations, time-varying measurement and unmeasured confounders limit inference. The model has not been independently validated for forecasting or policy use.''')
-    with st.expander('Hospital access and financial methodology'):
-        st.markdown('''**Access:** Community profile driving-time estimates and optional 5–30-minute polygons illustrate geographic reach to listed hospitals. They are not ambulance response times, patient transport times, or observed patient catchment areas.
-
-**Finances:** Hospital records show hospital-wide financial indicators. They cannot establish the cost, reimbursement, uncompensated care, or net financial loss attributable specifically to gunshot patients. Financial reporting years may differ from shooting years.''')
-    st.markdown('### 3. Data coverage')
-    st.write('See which indicators are available for the selected year.')
-    with st.expander('View completeness checks and technical details',expanded=False):
-        st.markdown('**Files currently used**')
-        st.code('data/chicago_community_area_year_merged.csv\ndata/trauma_hospitals.csv\ndata/dashboard_map.geojson',language='text')
-        qa_fields=['shot_total','population','shot_rate_per_10k','pct_poverty','pct_unemployed','per_capita_income','profile_trauma_drive_min']
-        available=[field for field in qa_fields if field in current.columns]
-        missing_data=pd.DataFrame({'Measure':available,
-                'Available areas':[int(current[field].notna().sum()) for field in available],
-                'Missing areas':[int(current[field].isna().sum()) for field in available]})
-        st.dataframe(missing_data,hide_index=True,use_container_width=True)
-        st.caption(f'{len(current)} rows in selected year {year}; {D.ca_num.nunique()} unique community area IDs across {D.year.min()}–{D.year.max()}.')
-        dupes=int(D.duplicated(['ca_num','year']).sum())
-        bad_pops=int((D.population<=0).sum()) if 'population' in D else 0
-        st.write(f'Duplicate community-year keys after loading: {dupes}; non-positive population rows: {bad_pops}.')
-
-
-    st.markdown('### 4. Understanding the findings')
-    st.write('These limitations matter when comparing neighborhoods or using findings to guide further research.')
-    limitations = [
-        ('Recent eviction records','Community-area eviction filing records for 2020–2025 have been requested but are not available in the project inputs; historical eviction values should not be interpreted as recent annual observations.'),
-        ('Indicator timing','Socioeconomic estimates may cover multi-year reference periods or be repeated across reporting years.'),
-        ('Geographic interpretation','Community-area averages conceal variation within areas and do not identify individual risk.'),
-        ('Healthcare access','Modeled travel reach excludes observed ambulance dispatch, traffic conditions, treatment routing and patient origin.'),
-        ('Hospital economics','Hospital-wide financial data do not isolate gunshot-specific expenditures or losses.'),
-        ('Statistical interpretation','Observed associations are not causal effects; model estimates are exploratory and not validated forecasts.')
+    st.divider()
+    st.subheader('Where does the information come from?')
+    st.write('Explore the public organizations and resources relevant to the dashboard. Each link explains the topic rather than opening a raw data file. We are still matching individual dashboard indicators to the exact source releases used to build the dataset.')
+    resources = [
+        ('Gun violence in Chicago', 'The City of Chicago publishes records of fatal and nonfatal shooting victimizations. These records help explain how shootings vary across communities.', 'City of Chicago — Violence Reduction Victimization Data', 'Explore shooting data', 'https://data.cityofchicago.org/Public-Safety/Violence-Reduction-Victims-of-Homicides-and-Non-Fa/gumc-mgzr'),
+        ('Housing and evictions', 'The Law Center for Better Housing provides historical information about eviction filings across Chicago communities. The linked Release 2 material covers 2010–2019.', 'Law Center for Better Housing (LCBH)', 'Explore eviction data', 'https://eviction.lcbh.org/data/download'),
+        ('Population and neighborhood conditions', 'The U.S. Census Bureau publishes population, income, poverty, employment, and housing estimates.', 'U.S. Census Bureau — American Community Survey', 'Explore Census information', 'https://www.census.gov/programs-surveys/acs'),
+        ('Community health information', 'The Chicago Health Atlas offers health and social indicators for Chicago communities.', 'Chicago Health Atlas', 'Explore community health indicators', 'https://chicagohealthatlas.org/'),
+        ('Chicago community boundaries', 'The City of Chicago provides the geographic outlines used to display its 77 community areas on maps.', 'City of Chicago — Community Area Boundaries', 'Explore community area maps', 'https://data.cityofchicago.org/Facilities-Geographic-Boundaries/Boundaries-Community-Areas-current-/cauq-8yn6'),
+        ('Cook County boundary map', 'Cook County GIS provides a geographic outline of the county. The county boundary is for map context; shooting figures in this dashboard cover Chicago community areas.', 'Cook County GIS — Simplified Cook County Boundary', 'Explore Cook County GIS resources', 'https://hub-cookcountyil.opendata.arcgis.com/'),
     ]
-    for heading, explanation in limitations:
-        st.markdown(f'**{heading}.** {explanation}')
-    st.markdown('### 5. Glossary and downloads')
-    st.write('The data dictionary explains the column names used in the downloadable research files.')
-    dictionary = pd.DataFrame([
-        ('ca_num','Chicago community-area identifier'),('ca_name','Community-area name'),('year','Shooting reporting year'),
-        ('shot_total','Total shooting victims'),('fatal','Fatal shooting victims'),('nonfatal','Nonfatal shooting victims'),
-        ('population','Population denominator'),('shot_rate_per_10k','Shooting victims per 10,000 residents'),
-        ('pct_poverty','Poverty percentage; source year needs confirmation'),('pct_unemployed','Unemployment percentage; source year needs confirmation'),
-        ('per_capita_income','Income per person'),('pct_rent_burdened','Rent-burdened household percentage'),
-        ('eviction_filing_rate','Eviction filing rate; unit and source years need confirmation'),
-        ('profile_trauma_drive_min','Estimated driving minutes to listed trauma center'),('profile_clinics','Estimated clinic count')
-    ],columns=['Field','Interpretation'])
-    with st.expander('View technical field names and definitions'):
-        st.dataframe(dictionary[dictionary.Field.isin(D.columns)],hide_index=True,use_container_width=True)
-    with st.expander('Download research data (CSV)'):
+    for heading, description, agency, label, url in resources:
+        st.markdown(f'#### {heading}')
+        st.write(description)
+        st.caption(f'Source: {agency}')
+        st.markdown(f'[{label}]({url})')
+    with st.expander('Additional source details'):
+        st.write('Some source pages provide background information or dataset catalogs rather than the exact version used in this project. Original source files, reporting years, and transformations are being traced from the data preparation scripts.')
+        st.write('Hospital locations, trauma designations, clinic counts, travel-time calculations, and hospital financial figures require source-specific documentation before we can attribute individual measures to a particular publication.')
+        st.write('The county boundary is an overlay, not a source for shooting counts. The GIS resource above is a public data portal rather than a direct technical FeatureServer endpoint.')
+
+    st.divider()
+    with st.expander('How the dashboard calculates and compares information'):
+        st.markdown('**Victims per 10,000 residents:** (shooting victims ÷ population) × 10,000. Citywide rates use the total victims and total population across included areas.')
+        st.markdown('**Year-over-year change:** This year’s rate minus the previous year’s rate for the same community.')
+        st.markdown('**Statistical model:** An exploratory Poisson regression compares shooting counts with poverty and unemployment while accounting for population and year. The sliders illustrate fitted associations, not predictions of policy effects.')
+        st.markdown('**Hospital finances:** The figures describe hospitals overall; they do not measure the cost of individual shooting injuries.')
+    with st.expander('Download data and view technical field definitions'):
+        dictionary = pd.DataFrame([
+            ('ca_num','Community area number'), ('ca_name','Community area name'), ('year','Reporting year'),
+            ('shot_total','Shooting victims'), ('fatal','Fatal shooting victims'), ('nonfatal','Nonfatal shooting victims'),
+            ('population','Population'), ('shot_rate_per_10k','Victims per 10,000 residents'),
+            ('pct_poverty','Poverty rate (%)'), ('pct_unemployed','Unemployment rate (%)'),
+            ('per_capita_income','Income per person ($)'), ('pct_rent_burdened','Rent burden (%)'),
+            ('eviction_filing_rate','Eviction filing rate'), ('profile_trauma_drive_min','Estimated trauma-center drive (minutes)'),
+            ('profile_clinics','Estimated clinic count')
+        ], columns=['Data field','Meaning'])
+        st.dataframe(dictionary[dictionary['Data field'].isin(D.columns)], hide_index=True, use_container_width=True)
         d1,d2=st.columns(2)
-        d1.download_button('Download merged dataset',D.to_csv(index=False).encode('utf-8'),file_name='chicago_community_area_year_merged.csv',mime='text/csv',key='methods_merged')
-        d2.download_button('Download selected-year data',current.to_csv(index=False).encode('utf-8'),file_name=f'chicago_{year}.csv',mime='text/csv',key='methods_year')
+        d1.download_button('Download all community data (CSV)',D.to_csv(index=False).encode('utf-8'),file_name='chicago_community_area_year_merged.csv',mime='text/csv',key='resources_merged')
+        d2.download_button('Download selected year (CSV)',current.to_csv(index=False).encode('utf-8'),file_name=f'chicago_{year}.csv',mime='text/csv',key='resources_year')
 
 with st.sidebar.expander('Download dashboard report (PDF)',expanded=False):
     st.write(f'Generate a report for **{area}**, reporting year **{year}**, trend period **{range_start}–{range_end}**. Includes a KPI summary, charts, and limitations.')
