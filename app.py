@@ -525,36 +525,52 @@ with t3:
         icon=folium.Icon(color="darkblue", icon="plus-sign")
     ).add_to(stroger_layer)
     
+    
     if show_catchments:
         coverage_layer = folium.FeatureGroup(
-            name="Illustrative hospital coverage",
+            name=f"{coverage_minutes}-minute driving coverage",
             show=True
         )
 
-        for _, hospital in H.iterrows():
-            lat = pd.to_numeric(hospital.get("lat"), errors="coerce")
-            lon = pd.to_numeric(hospital.get("lon"), errors="coerce")
+        matching_areas = [
+            feature for feature in COVERAGE.get("features", [])
+            if int(feature.get("properties", {}).get("minutes", -1))
+            == coverage_minutes
+        ]
 
-            if pd.isna(lat) or pd.isna(lon):
-                continue
+        for feature in matching_areas:
+            hospital_name = str(
+                feature.get("properties", {}).get("hospital", "Hospital")
+            )
 
-            folium.Circle(
-                location=[float(lat), float(lon)],
-                radius=3000,
-                color="#079DB5",
-                weight=2,
-                fill=True,
-                fill_color="#079DB5",
-                fill_opacity=0.15,
-                tooltip=str(hospital.get("hospital", "Hospital"))
+            folium.GeoJson(
+                feature,
+                style_function=lambda x: {
+                    "color": "#079DB5",
+                    "weight": 2,
+                    "fillColor": "#079DB5",
+                    "fillOpacity": 0.18
+                },
+                tooltip=folium.Tooltip(
+                    f"{html.escape(hospital_name)}: "
+                    f"{coverage_minutes}-minute driving area"
+                )
             ).add_to(coverage_layer)
 
         coverage_layer.add_to(hospital_map)
 
-        st.caption(
-            "Illustrative 3 km hospital buffers. "
-            "These are not verified driving-time catchment areas."
-        )
+        if not matching_areas:
+            st.warning(
+                f"No coverage data found for {coverage_minutes} minutes."
+            )
+        else:
+            st.caption(
+                f"Showing modeled {coverage_minutes}-minute driving-time "
+                "coverage areas. Overlapping shaded areas indicate "
+                "potential access to multiple hospitals. "
+                "These are not actual patient catchment areas, "
+                "ambulance response times, or traffic-aware estimates."
+            )
 
     other_layer.add_to(hospital_map)
     stroger_layer.add_to(hospital_map)
