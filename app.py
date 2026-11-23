@@ -233,18 +233,10 @@ with t1:
         cmap=bcm.LinearColormap(['#fff7bc','#fec44f','#f03b20','#800026'],vmin=vmin,vmax=max(vmax,vmin+.01),caption=choice)
         show_trauma_on_main=st.checkbox('Show listed trauma hospitals on this map',value=False,key='main_trauma_markers')
         show_county=st.checkbox('Show Cook County boundary', value=True, key='cook_county_boundary')
-        county_view=st.checkbox('Zoom out to all of Cook County', value=False, key='cook_county_view',
-                                help='Displays county geography; shooting figures still describe Chicago only.')
         mp=folium.Map(location=[41.84,-87.68],zoom_start=10,tiles='OpenStreetMap',control_scale=True)
-        county_geo, county_error = (load_cook_county_boundary() if (show_county or county_view)
-                                    else (None, None))
-        if county_geo:
-            if county_view:
-                # GeoJson bounds are computed from the actual county geometry, not estimated coordinates.
-                bounds=folium.GeoJson(county_geo).get_bounds()
-                if bounds:
-                    mp.fit_bounds(bounds, padding=(15,15))
-        elif county_error:
+        county_geo, county_error = (
+        load_cook_county_boundary() if show_county else (None, None))
+        if county_error:
             st.info('Cook County boundary temporarily unavailable. The Chicago community map still works. '
                     'You can also place cook_county_boundary.geojson in the data/ folder for offline use.')
         st.caption('Purple dashed line = Cook County boundary; colored polygons = Chicago community areas with available data. '
