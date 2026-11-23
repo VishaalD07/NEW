@@ -533,6 +533,29 @@ with t3:
             show=True
         )
 
+        hospital_names = sorted({
+            str(feature.get("properties", {}).get("hospital", "Hospital"))
+            for feature in COVERAGE.get("features", [])
+        })
+
+        hospital_palette = [
+            "#E63946",  # Red
+            "#457B9D",  # Blue
+            "#2A9D8F",  # Teal
+            "#F4A261",  # Orange
+            "#9B5DE5",  # Purple
+            "#E9C46A",  # Gold
+            "#F15BB5",  # Pink
+            "#4361EE",  # Royal blue
+            "#6A994E",  # Green
+            "#BC6C25",  # Brown
+        ]
+
+        hospital_colors = {
+            name: hospital_palette[i % len(hospital_palette)]
+            for i, name in enumerate(hospital_names)
+        }
+
         matching_areas = [
             feature for feature in COVERAGE.get("features", [])
             if int(feature.get("properties", {}).get("minutes", -1))
@@ -546,12 +569,14 @@ with t3:
 
             folium.GeoJson(
                 feature,
-                style_function=lambda x: {
-                    "color": "#079DB5",
+                
+                style_function=lambda x, color=hospital_colors[hospital_name]: {
+                    "color": color,
                     "weight": 2,
-                    "fillColor": "#079DB5",
-                    "fillOpacity": 0.18
+                    "fillColor": color,
+                    "fillOpacity": 0.22
                 },
+
                 tooltip=folium.Tooltip(
                     f"{html.escape(hospital_name)}: "
                     f"{coverage_minutes}-minute driving area"
