@@ -24,14 +24,20 @@ def load():
     d=pd.read_csv(ROOT/'chicago_community_area_year_merged.csv')
     h=pd.read_csv(ROOT/'trauma_hospitals.csv')
     geo=json.loads((ROOT/'dashboard_map.geojson').read_text())
+        coverage_path = ROOT / 'hospital_coverage.geojson'
+    coverage_geo = (
+        json.loads(coverage_path.read_text())
+        if coverage_path.exists()
+        else {"type": "FeatureCollection", "features": []}
+    )
     d.columns=d.columns.str.strip()
     for c in ['shot_total','fatal','nonfatal','population','pct_poverty','pct_unemployed','shot_rate_per_10k','per_capita_income','profile_trauma_drive_min','profile_clinics','pct_rent_burdened','eviction_filing_rate']:
         if c in d: d[c]=pd.to_numeric(d[c],errors='coerce')
     d=d.dropna(subset=['ca_num','ca_name','year']).drop_duplicates(['ca_num','year'],keep='first')
     d['ca_num']=d.ca_num.astype(int);d['year']=d.year.astype(int)
     for f in geo['features']: f['properties']['ca_num']=int(f['properties']['ca_num'])
-    return d,h,geo
-D,H,G=load()
+    return d,h,geo,coverage_geo
+D,H,G,COVERAGE=load()
 # Optional official county boundary overlay. The shooting dataset remains Chicago-only.
 # Source: Cook County GIS ArcGIS service, Simplified Cook County Boundary (layer 199).
 @st.cache_data(ttl=86400, show_spinner=False)
