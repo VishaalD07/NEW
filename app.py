@@ -112,7 +112,7 @@ def load():
         d.loc[d[field].lt(0),field]=np.nan
     if 'profile_nearest_center' not in d: d['profile_nearest_center']=np.nan
     for field in ['total_costs','net_patient_revenue','charity_care_cost','uncompensated_care_cost']:
-        h[field]=pd.to_numeric(h[field],errors='coerce') if field in h and documented('hospital_financials') else np.nan
+        h[field]=pd.to_numeric(h[field],errors='coerce') if field in h else np.nan
     if not documented('hospital_coverage'):
         coverage_geo={'type':'FeatureCollection','features':[]}
     # Historical eviction reference from the local dataset, never assigned to another year.
@@ -447,7 +447,7 @@ with t1:
         st.subheader(f'{area}: socioeconomic & healthcare snapshot')
         cols=st.columns(4)
         for col,(label,key) in zip(cols,[('Poverty', 'pct_poverty'),('Unemployment','pct_unemployed'),('Estimated trauma drive (min)','profile_trauma_drive_min'),('Clinics (estimate)','profile_clinics')]):
-            col.metric(label,fmt(get(row,key),1))
+            col.metric(label,pct(get(row,key)) if key in ['pct_poverty','pct_unemployed'] else fmt(get(row,key),0 if key=='profile_clinics' else 1))
     st.subheader('How have shootings changed over time?')
     trend=D_window if row is None else D_window[D_window.ca_name==area]
     trend=trend.groupby('year',as_index=False)[['fatal','nonfatal']].sum()
@@ -548,7 +548,7 @@ with t2:
         st.error(f'Regression could not be estimated: {exc}')
 
 with t3:
-    st.caption('Healthcare access values and hospital locations are existing project estimates; original source periods and methods remain unconfirmed. Unverified financial records are withheld. See Tab 5.')
+    st.caption('Healthcare access values and hospital locations are existing project estimates; original source periods and methods remain unconfirmed. Hospital financial records are displayed as supplied; original source reconciliation is pending. See Tab 5.')
     st.subheader('Healthcare access and hospital impact')
     st.write('Explore where listed hospitals are located, estimated driving-time coverage, and hospital-wide financial information.')
     st.caption('Travel times are estimates, not measured ambulance response or transport times. Hospital costs are hospital-wide, not shooting-specific.')
@@ -735,30 +735,49 @@ with t3:
     st.info("The neighborhood shooting totals in this dashboard are not counts of "
             "patients treated at Stroger Hospital. Hospital-specific firearm injury "
             "counts have not been verified or added.")
-    stroger_data = H[H["hospital"].astype(str).str.contains(
-        r"Stroger|Cook County Hospital", case=False, regex=True, na=False
-    )]
-    finance_cols = [c for c in (
-        "hospital", "total_costs", "net_patient_revenue",
-        "charity_care_cost", "uncompensated_care_cost"
-    ) if c in stroger_data.columns]
-    if not stroger_data.empty and len(finance_cols) > 1:
-        st.markdown("**Stroger financial figures available in the existing dataset**")
-        with st.expander('View Stroger financial records'):
-            st.dataframe(stroger_data[finance_cols].rename(columns={'hospital':'Hospital','total_costs':'Total hospital costs ($)','net_patient_revenue':'Net patient revenue ($)','charity_care_cost':'Charity care ($)','uncompensated_care_cost':'Uncompensated care ($)'}), hide_index=True, use_container_width=True)
-        st.caption("These are hospital-wide financial fields, not firearm-injury-specific costs. "
-                   "Verify reporting periods and original sources before presenting.")
+    finance_labels = {
+        'hospital': 'Hospital', 'type': 'Hospital type',
+        'fiscal_year_end': 'Fiscal year end',
+        'total_costs': 'Total hospital costs ($)',
+        'net_patient_revenue': 'Net patient revenue ($)',
+        'charity_care_cost': 'Charity care costs ($)',
+        'uncompensated_care_cost': 'Uncompensated care costs ($)',
+    }
+    money_fields = ['total_costs','net_patient_revenue','charity_care_cost','uncompensated_care_cost']
+    def show_financial_table(frame, include_type=True):
+        cols = [c for c in finance_labels if c in frame.columns and (include_type or c != 'type')]
+        table = frame[cols].rename(columns=finance_labels)
+        formats = {finance_labels[c]: '${:,.0f}' for c in money_fields if c in cols}
+        st.dataframe(table.style.format(formats, na_rep='N/A'), hide_index=True, use_container_width=True)
+
+    stroger_data = H[H['hospital'].astype(str).str.contains(r'Stroger|Cook County Hospital', case=False, regex=True, na=False)]
+    if not stroger_data.empty:
+        st.markdown('**Stroger Hospital financial summary**')
+        show_financial_table(stroger_data, include_type=False)
     else:
-        st.caption("No Stroger-specific financial record is available in the current hospital CSV.")
+        st.info('No Stroger financial record is available in the hospital CSV.')
 
     st.subheader('Hospital financial comparison')
-    fields=['hospital','type','total_costs','net_patient_revenue','charity_care_cost','uncompensated_care_cost']
-    with st.expander('View detailed hospital financial figures'):
-        st.dataframe(H[[c for c in fields if c in H.columns]].rename(columns={'hospital':'Hospital','type':'Hospital type','total_costs':'Total hospital costs ($)','net_patient_revenue':'Net patient revenue ($)','charity_care_cost':'Charity care ($)','uncompensated_care_cost':'Uncompensated care ($)'}),hide_index=True,use_container_width=True)
-    financial=H.dropna(subset=['total_costs']).sort_values('total_costs')
-    if len(financial):
-        fig=px.bar(financial,x='total_costs',y='hospital',orientation='h',labels={'total_costs':'Hospital-wide total costs ($)','hospital':''},height=400)
-        st.plotly_chart(fig,use_container_width=True)
+    st.caption('Hospital-wide amounts from trauma_hospitals.csv, in US dollars. Fiscal periods may differ. Original source reconciliation is pending; see Tab 5.')
+    sort_label = st.selectbox('Sort hospitals by', ['Hospital (A–Z)'] + [finance_labels[c] for c in money_fields], key='finance_sort')
+    sort_field = next((c for c in money_fields if finance_labels[c] == sort_label), 'hospital')
+    ordered = H.sort_values(sort_field, ascending=sort_field == 'hospital', na_position='last')
+    show_financial_table(ordered)
+    chart_label = st.selectbox('Financial measure to compare', [finance_labels[c] for c in money_fields], key='finance_chart')
+    chart_field = next(c for c in money_fields if finance_labels[c] == chart_label)
+    financial = H.dropna(subset=[chart_field]).sort_values(chart_field)
+    if not financial.empty:
+        fig = px.bar(financial, x=chart_field, y='hospital', orientation='h',
+                     labels={chart_field:chart_label,'hospital':''}, height=max(400,45*len(financial)))
+        fig.update_traces(marker_color=[NAVY if 'stroger' in str(n).lower() else TEAL for n in financial.hospital],
+                          hovertemplate='%{y}<br>$%{x:,.0f}<extra></extra>')
+        fig.update_xaxes(tickprefix='$', tickformat=',.0f')
+        st.plotly_chart(chart_style(fig), use_container_width=True)
+    else:
+        st.info('No numerical values are available for this financial measure.')
+    st.caption('These figures are not firearm-specific treatment expenses, reimbursement or financial losses.')
+    st.markdown('[CMS Hospital Provider Cost Report — verification reference](https://data.cms.gov/provider-compliance/cost-reports/hospital-provider-cost-report)')
+
     st.subheader('Estimated access compared with shooting rates')
     access_preview=current.dropna(subset=['profile_trauma_drive_min','shot_rate_per_10k'])
     if not access_preview.empty:
@@ -801,8 +820,12 @@ with t4:
     else:
         k1, k2, k3 = st.columns(3)
         k1.metric('Areas compared', f'{len(subset):,}')
-        k2.metric('Median ' + measure_label, fmt(subset[measure].median(), 1 if measure != 'shot_total' else 0))
-        k3.metric('Highest: ' + str(subset.iloc[0]['ca_name']), fmt(subset.iloc[0][measure], 1 if measure != 'shot_total' else 0))
+        def comparison_value(value):
+            if measure == 'per_capita_income': return '$'+fmt(value)
+            if measure in ['pct_poverty','pct_unemployed']: return pct(value)
+            return fmt(value,0 if measure=='shot_total' else 1)
+        k2.metric('Median ' + measure_label, comparison_value(subset[measure].median()))
+        k3.metric('Highest: ' + str(subset.iloc[0]['ca_name']), comparison_value(subset.iloc[0][measure]))
 
         chart_col, scatter_col = st.columns(2, gap='large')
         with chart_col:
@@ -813,6 +836,7 @@ with t4:
                          color=measure, color_continuous_scale=[(0,'#DDF2F6'),(.5,TEAL),(1,RED)], height=400)
             bar.update_layout(showlegend=False, coloraxis_showscale=False,
                               margin=dict(l=0,r=8,t=5,b=0))
+            bar.update_xaxes(tickformat=',.0f' if measure in ['shot_total','per_capita_income'] else ',.1f', tickprefix='$' if measure=='per_capita_income' else '', ticksuffix='%' if measure in ['pct_poverty','pct_unemployed'] else '')
             st.plotly_chart(bar, use_container_width=True)
         with scatter_col:
             st.markdown('**Poverty vs. shooting victim rate**')
@@ -840,7 +864,9 @@ with t4:
             pair = current[current.ca_name.isin([first, second])].copy()
             pair_display = pair[['ca_name','shot_total','shot_rate_per_10k','pct_poverty','pct_unemployed','per_capita_income']].set_index('ca_name').T
             pair_display.index = ['Shooting victims','Victims per 10,000','Poverty (%)','Unemployment (%)','Income per person ($)']
-            st.dataframe(pair_display.style.format('{:,.1f}', na_rep='N/A'), use_container_width=True)
+            pair_style = pair_display.style.format('{:,.1f}', na_rep='N/A')
+            pair_style = pair_style.format('{:,.0f}', subset=pd.IndexSlice[['Shooting victims'], :], na_rep='N/A').format('${:,.0f}', subset=pd.IndexSlice[['Income per person ($)'], :], na_rep='N/A').format('{:,.1f}%', subset=pd.IndexSlice[['Poverty (%)','Unemployment (%)'], :], na_rep='N/A')
+            st.dataframe(pair_style, use_container_width=True)
             if first == second:
                 st.caption('Choose two different communities to see a side-by-side comparison.')
         else:
@@ -880,7 +906,7 @@ with t4:
             st.caption('Teal indicates a lower victim rate than the previous year; red indicates a higher rate. The chart ranks areas by largest absolute rate change.')
             yoy_table = yoy_valid[['ca_name','prior_rate','shot_rate_per_10k','rate_change','rate_change_pct']].copy()
             yoy_table.columns=['Community area',f'{year-1} rate',f'{year} rate','Change per 10,000','Change (%)']
-            st.dataframe(yoy_table.sort_values('Change per 10,000',ascending=False).round(2),
+            st.dataframe(yoy_table.sort_values('Change per 10,000',ascending=False).style.format({f'{year-1} rate':'{:,.2f}', f'{year} rate':'{:,.2f}', 'Change per 10,000':'{:+,.2f}', 'Change (%)':'{:+,.2f}%'}, na_rep='N/A'),
                          hide_index=True,use_container_width=True)
 
         st.divider()
@@ -962,15 +988,11 @@ with t4:
             'profile_trauma_drive_min':'Estimated trauma drive (min)'
         }
         full = subset[list(display_cols)].rename(columns=display_cols)
-        st.dataframe(full, hide_index=True, use_container_width=True,
-                     column_config={
-                         'Shooting victims':st.column_config.NumberColumn(format='%d'),
-                         'Victims per 10,000':st.column_config.NumberColumn(format='%.1f'),
-                         'Poverty (%)':st.column_config.NumberColumn(format='%.1f%%'),
-                         'Unemployment (%)':st.column_config.NumberColumn(format='%.1f%%'),
-                         'Income per person ($)':st.column_config.NumberColumn(format='$%.0f'),
-                         'Estimated trauma drive (min)':st.column_config.NumberColumn(format='%.1f')
-                     })
+        st.dataframe(full.style.format({
+            'Shooting victims':'{:,.0f}', 'Victims per 10,000':'{:,.1f}',
+            'Poverty (%)':'{:,.1f}%', 'Unemployment (%)':'{:,.1f}%',
+            'Income per person ($)':'${:,.0f}', 'Estimated trauma drive (min)':'{:,.1f}'
+        }, na_rep='N/A'), hide_index=True, use_container_width=True)
         st.download_button('Download comparison CSV',
                            full.to_csv(index=False).encode('utf-8'),
                            file_name=f'cook_county_neighborhood_comparison_{year}.csv',
@@ -1140,7 +1162,7 @@ with t5:
     with st.expander('Hospital access and financial methodology'):
         st.markdown('''**Access:** Existing travel times are displayed as unverified project estimates. Coverage polygons require documented routing methodology. They are not ambulance response times, patient transport times, or observed patient catchment areas.
 
-**Finances:** Hospital records show hospital-wide financial indicators. They cannot establish the cost, reimbursement, uncompensated care, or net financial loss attributable specifically to gunshot patients. Financial reporting years may differ from shooting years.''')
+**Finances:** The existing trauma_hospitals.csv amounts are displayed without changing their values. CMS and IDPH are verification references; original source reconciliation remains pending. Hospital records show hospital-wide financial indicators. They cannot establish the cost, reimbursement, uncompensated care, or net financial loss attributable specifically to gunshot patients. Financial reporting years may differ from shooting years.''')
     st.markdown('### 3. Understanding the findings')
     st.write('These limitations matter when comparing neighborhoods or using findings to guide further research.')
     limitations = [
