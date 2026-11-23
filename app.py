@@ -443,7 +443,7 @@ with t3:
     # Interactive hospital map: highlight Stroger without duplicating its CSV entry.
     st.markdown("#### Chicago trauma hospitals")
     show_other = st.checkbox("Show other listed hospitals", value=True, key="show_other_hospitals")
-    focus_stroger = st.checkbox("Zoom to Stroger Hospital", value=False, key="focus_stroger")
+    hospital_map = folium.Map(location=[41.84, -87.68], zoom_start=10, tiles="OpenStreetMap", control_scale=True)
 
     show_catchments = st.checkbox(
         "Show illustrative hospital coverage areas",
@@ -592,8 +592,11 @@ with t3:
     stroger_layer.add_to(hospital_map)
     folium.LayerControl(collapsed=False).add_to(hospital_map)
     st_folium(
-        hospital_map, height=470, use_container_width=True,
-        key=f"hospital_map_{focus_stroger}_{show_other}", returned_objects=[]
+        hospital_map,
+        height=470,
+        use_container_width=True,
+        key="hospital_map",
+        returned_objects=[]
     )
     st.caption("Navy: Stroger Hospital · Turquoise-blue: other hospitals in the dataset. "
                "Map coordinates are approximate; confirm locations and trauma designations before publication.")
