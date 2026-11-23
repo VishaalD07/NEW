@@ -67,7 +67,16 @@ def load_cook_county_boundary():
 st.markdown("""<style>
 /* Cook County Health-inspired theme: respect Streamlit light/dark surface variables. */
 :root { --cch-navy:#06264A; --cch-teal:#079DB5; --cch-red:#C84459; }
-.block-container { padding-top:1.2rem; max-width:1500px; padding-bottom:2.5rem; }
+.block-container { padding-top:1.45rem; max-width:1450px; padding-bottom:3rem; }
+.stApp { background-color:#FAFCFE; }
+[data-testid='stHeader'] { background:rgba(250,252,254,.92); }
+h1 { color:#06264A!important; font-weight:760!important; }
+h2,h3 { color:#123C64!important; }
+[data-testid='stVerticalBlock'] { row-gap:.65rem; }
+[data-testid='stAlert'] { border-radius:10px; }
+[data-testid='stExpander'] { border-radius:10px; border-color:#DDE7EF; }
+[data-testid='stDataFrame'] { border:1px solid #E3EAF1; }
+[data-testid='stMetric'] { box-shadow:0 2px 10px rgba(6,38,74,.035); }
 h1,h2,h3 { letter-spacing:-.025em; }
 [data-testid="stSidebar"] {
  background:linear-gradient(170deg,#06264A 0%,#09365C 73%,#0B546C 100%)!important;
@@ -180,7 +189,7 @@ area=st.sidebar.selectbox('Focus community area',['All Chicago']+areas,key='sele
 st.sidebar.caption(f'{D.ca_num.nunique()} Chicago community areas · {D.year.min()}–{D.year.max()} shooting data')
 st.title('Chicago Gun Violence & Healthcare Dashboard')
 st.caption('Community-level evidence · exploratory associations, not causal predictions')
-t1,t2,t3,t4=st.tabs(['🗺️ Overview & Map','📊 Socioeconomic Factors & Regression','🏥 Healthcare & Hospital Impact','🏘️ Neighborhood Comparison'])
+t1,t2,t3,t4,t5=st.tabs(['🗺️ Overview & Map','📊 Socioeconomic Factors & Regression','🏥 Healthcare & Hospital Impact','🏘️ Neighborhood Comparison','📚 Methods & Limitations'])
 
 row=current[current.ca_name==area].iloc[0] if area!='All Chicago' else None
 selected=current if row is None else current[current.ca_name==area]
@@ -937,22 +946,91 @@ def create_client_pdf(data, all_history, hospitals, reporting_year, community, s
     return out.getvalue()
 
 st.divider()
-st.subheader('data quality')
-with st.expander('Data source coverage and quality checks',expanded=False):
-    st.markdown('**Files currently used**')
-    st.code('data/chicago_community_area_year_merged.csv\ndata/trauma_hospitals.csv\ndata/dashboard_map.geojson',language='text')
-    st.caption('These filenames identify the bundled inputs, not verified originating agencies or collection methods.')
-    qa_fields=['shot_total','population','shot_rate_per_10k','pct_poverty','pct_unemployed','per_capita_income','profile_trauma_drive_min']
-    available=[field for field in qa_fields if field in current.columns]
-    missing_data=pd.DataFrame({'Measure':available,
-            'Available areas':[int(current[field].notna().sum()) for field in available],
-            'Missing areas':[int(current[field].isna().sum()) for field in available]})
-    st.dataframe(missing_data,hide_index=True,use_container_width=True)
-    st.caption(f'{len(current)} rows in selected year {year}; {D.ca_num.nunique()} unique community area IDs across {D.year.min()}–{D.year.max()}.')
-    dupes=int(D.duplicated(['ca_num','year']).sum())
-    bad_pops=int((D.population<=0).sum()) if 'population' in D else 0
-    st.write(f'Duplicate community-year keys after loading: {dupes}; non-positive population rows: {bad_pops}.')
-    st.warning('Verify original data agency, collection period, profile indicator reference years, hospital designations, travel-time calculation, and hospital financial reporting period before publication. Missing records are not assumed to be zero.')
+with t5:
+    st.subheader('Methods & Limitations')
+    st.caption('Research transparency · Data provenance · Analytical definitions · Appropriate interpretation')
+    st.markdown('''This dashboard integrates Chicago community-area shooting-victim data, neighborhood indicators, hospital records, and geographic boundaries. The information supports **exploratory comparisons**, not causal conclusions, clinical decisions, or estimates of the cost of individual gunshot injuries.''')
+    st.markdown('### 1. Data inventory and coverage')
+    source_inventory = pd.DataFrame([
+        {'Input file':'chicago_community_area_year_merged.csv','Used for':'Shooting victims, community populations, socioeconomic indicators and estimated access','Coverage / verification':'Community-area by year; source agency and variable reference years require verification'},
+        {'Input file':'trauma_hospitals.csv','Used for':'Hospital locations, trauma designation fields and hospital-wide finances','Coverage / verification':'Hospital list and financial reporting periods require verification'},
+        {'Input file':'dashboard_map.geojson','Used for':'Chicago community-area polygons','Coverage / verification':'Check area IDs and boundary vintage'},
+        {'Input file':'hospital_coverage.geojson (optional)','Used for':'Illustrative 5–30-minute driving-area polygons','Coverage / verification':'Confirm routing method, assumptions and hospital coverage'},
+        {'Input file':'cook_county_boundary.geojson (optional)','Used for':'Cook County outline on the map','Coverage / verification':'May be loaded from county GIS service; does not extend shooting-data coverage'}
+    ])
+    st.dataframe(source_inventory,hide_index=True,use_container_width=True)
+    st.caption('These are the actual filenames referenced by this application, not a verified list of original agencies. Do not describe the files as official agency publications without checking their metadata.')
+    k1,k2,k3,k4=st.columns(4)
+    k1.metric('Community areas',fmt(D.ca_num.nunique()))
+    k2.metric('Years represented',f'{D.year.min()}–{D.year.max()}')
+    k3.metric('Community-year rows',fmt(len(D)))
+    k4.metric('Hospitals in file',fmt(len(H)))
+    st.markdown('### 2. Preparation and calculations')
+    with st.expander('Data processing and measure definitions',expanded=True):
+        st.markdown('''**Unit of analysis:** One community area in one reporting year. The app removes duplicate community-area/year keys on loading and coerces available numerical fields to numbers. Some socioeconomic profile fields may repeat across years rather than represent new annual measurements.
+
+**Shooting victims:** People recorded as fatally or nonfatally shot; this is not necessarily the number of distinct incidents.
+
+**Victims per 10,000 residents:** `(shooting victims / population) × 10,000`. For all-Chicago summaries, victims and populations are summed before calculating the rate.
+
+**Year-over-year change:** Current annual rate minus the previous annual rate for the same community. Percentage change is computed only when the prior rate is greater than zero.
+
+**Socioeconomic variables:** Poverty, unemployment, income per person, rent burden, and eviction filing rate are displayed as provided in the merged file. Source reference periods, denominators and eviction rate units require validation.''')
+    with st.expander('Regression model and what-if explorer',expanded=True):
+        st.markdown('''**Current model:** Exploratory Poisson generalized linear model of shooting-victim counts with poverty and unemployment percentages, reporting-year indicators, and a log-population offset. The app reports heteroskedasticity-robust (HC1) standard errors, fitted rate ratios and a Pearson dispersion diagnostic. When dispersion is high, it offers an exploratory negative-binomial comparison.
+
+**Observed versus estimated:** The scatterplot compares actual victim counts with the model's in-sample estimates, not a direct poverty-versus-shootings relationship.
+
+**What-if controls:** Sliders change model inputs and display the relative fitted rate. They **do not** estimate the effect of a real intervention. Repeated area observations, time-varying measurement and unmeasured confounders limit inference. The model has not been independently validated for forecasting or policy use.''')
+    with st.expander('Hospital access and financial methodology'):
+        st.markdown('''**Access:** Community profile driving-time estimates and optional 5–30-minute polygons illustrate geographic reach to listed hospitals. They are not ambulance response times, patient transport times, or observed patient catchment areas.
+
+**Finances:** Hospital records show hospital-wide financial indicators. They cannot establish the cost, reimbursement, uncompensated care, or net financial loss attributable specifically to gunshot patients. Financial reporting years may differ from shooting years.''')
+    st.markdown('### 3. Data quality checks')
+    with st.expander('Completeness and key checks',expanded=True):
+        st.markdown('**Files currently used**')
+        st.code('data/chicago_community_area_year_merged.csv\ndata/trauma_hospitals.csv\ndata/dashboard_map.geojson',language='text')
+        st.caption('These filenames identify the bundled inputs, not verified originating agencies or collection methods.')
+        qa_fields=['shot_total','population','shot_rate_per_10k','pct_poverty','pct_unemployed','per_capita_income','profile_trauma_drive_min']
+        available=[field for field in qa_fields if field in current.columns]
+        missing_data=pd.DataFrame({'Measure':available,
+                'Available areas':[int(current[field].notna().sum()) for field in available],
+                'Missing areas':[int(current[field].isna().sum()) for field in available]})
+        st.dataframe(missing_data,hide_index=True,use_container_width=True)
+        st.caption(f'{len(current)} rows in selected year {year}; {D.ca_num.nunique()} unique community area IDs across {D.year.min()}–{D.year.max()}.')
+        dupes=int(D.duplicated(['ca_num','year']).sum())
+        bad_pops=int((D.population<=0).sum()) if 'population' in D else 0
+        st.write(f'Duplicate community-year keys after loading: {dupes}; non-positive population rows: {bad_pops}.')
+        st.warning('Verify original data agency, collection period, profile indicator reference years, hospital designations, travel-time calculation, and hospital financial reporting period before publication. Missing records are not assumed to be zero.')
+
+
+    st.markdown('### 4. Known limitations and open validation tasks')
+    limitations = [
+        ('Recent eviction records','Community-area eviction filing records for 2020–2025 have been requested but are not available in the project inputs; historical eviction values should not be interpreted as recent annual observations.'),
+        ('Coverage and reporting','Shooting/death coverage, especially the most recent year, and population denominators need reconciliation with original sources.'),
+        ('Indicator timing','Socioeconomic estimates may cover multi-year reference periods or be repeated across reporting years.'),
+        ('Geographic interpretation','Community-area averages conceal variation within areas and do not identify individual risk.'),
+        ('Healthcare access','Modeled travel reach excludes observed ambulance dispatch, traffic conditions, treatment routing and patient origin.'),
+        ('Hospital economics','Hospital-wide financial data do not isolate gunshot-specific expenditures or losses.'),
+        ('Statistical interpretation','Observed associations are not causal effects; model estimates are exploratory and not validated forecasts.')
+    ]
+    for heading, explanation in limitations:
+        st.markdown(f'**{heading}.** {explanation}')
+    st.markdown('### 5. Data dictionary and downloads')
+    dictionary = pd.DataFrame([
+        ('ca_num','Chicago community-area identifier'),('ca_name','Community-area name'),('year','Shooting reporting year'),
+        ('shot_total','Total shooting victims'),('fatal','Fatal shooting victims'),('nonfatal','Nonfatal shooting victims'),
+        ('population','Population denominator'),('shot_rate_per_10k','Shooting victims per 10,000 residents'),
+        ('pct_poverty','Poverty percentage; source year needs confirmation'),('pct_unemployed','Unemployment percentage; source year needs confirmation'),
+        ('per_capita_income','Income per person'),('pct_rent_burdened','Rent-burdened household percentage'),
+        ('eviction_filing_rate','Eviction filing rate; unit and source years need confirmation'),
+        ('profile_trauma_drive_min','Estimated driving minutes to listed trauma center'),('profile_clinics','Estimated clinic count')
+    ],columns=['Field','Interpretation'])
+    st.dataframe(dictionary[dictionary.Field.isin(D.columns)],hide_index=True,use_container_width=True)
+    d1,d2=st.columns(2)
+    d1.download_button('Download merged dataset',D.to_csv(index=False).encode('utf-8'),file_name='chicago_community_area_year_merged.csv',mime='text/csv',key='methods_merged')
+    d2.download_button('Download selected-year data',current.to_csv(index=False).encode('utf-8'),file_name=f'chicago_{year}.csv',mime='text/csv',key='methods_year')
+    st.info('For research interpretation only. Verify source agencies, definitions, publication dates, and data coverage before external distribution.')
 
 with st.expander('Download client-ready PDF',expanded=False):
     st.write(f'Generate a report for **{area}**, reporting year **{year}**, trend period **{range_start}–{range_end}**. Includes a KPI summary, charts, and limitations.')
@@ -974,9 +1052,4 @@ with st.expander('Download client-ready PDF',expanded=False):
     else:
         st.caption('Click Generate PDF report first. Reports are rebuilt when you change the selection.')
 
-with st.expander('Data definitions, limitations & download'):
-    st.write('Merged dataset: one row per Chicago community area and shooting year. Profile variables are repeated across years and must not be treated as independent annual observations. Historical 2008–2012 indicators are labeled separately.')
-    st.write('Poverty definition, socioeconomic source years, hospital designations, and cost-report figures require primary-source verification. Shooting counts represent victims, not necessarily distinct incidents.')
-    st.download_button('Download merged data',D.to_csv(index=False).encode(),'chicago_community_area_year_merged.csv','text/csv')
-    st.download_button('Download selected year',current.to_csv(index=False).encode(),f'chicago_{year}.csv','text/csv')
 st.caption('Research prototype · Not emergency-response guidance or a validated causal prediction model')
