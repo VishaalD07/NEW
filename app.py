@@ -33,6 +33,8 @@ SOURCE_REGISTRY = {
     'idph_trauma': ('Illinois Department of Public Health', 'Trauma Program', 'https://dph.illinois.gov/topics-services/emergency-preparedness-response/ems/trauma-program'),
     'idph_report': ('Illinois Department of Public Health', 'Illinois Hospital Report Card', 'https://healthcarereportcard.illinois.gov/'),
     'cch': ('Cook County Health', 'John H. Stroger Jr. Hospital', 'https://cookcountyhealth.org/locations/john-h-stroger-jr-hospital-of-cook-county/'),
+    'cdph_clinics': ('Chicago Department of Public Health', 'Chicago Primary Care Community Health Centers', 'https://data.cityofchicago.org/d/cjg8-dbka'),
+    'osrm': ('Project OSRM / OpenStreetMap', 'Routing API — estimated travel durations', 'https://project-osrm.org/docs/v5.22.0/api/'),
     'osm': ('OpenStreetMap contributors', 'OpenStreetMap basemap', 'https://www.openstreetmap.org/copyright'),
 }
 # Expected references, not asserted origins of the uploaded project's CSV files.
@@ -47,8 +49,8 @@ FIELD_SOURCES = {
     'eviction_filing_rate': ['evictions'], 'pct_on_medicaid': ['atlas','acs','community_acs'],
     'hospital_locations': ['idph_trauma','idph_report','cch'],
     'hospital_financials': ['cms','idph_report'],
-    'profile_clinics': ['atlas','idph_report'],
-    'profile_nearest_center': [], 'profile_trauma_drive_min': [], 'hospital_coverage': [],
+    'profile_clinics': ['atlas','idph_report','cdph_clinics'],
+    'profile_nearest_center': ['idph_trauma','osrm'], 'profile_trauma_drive_min': ['osrm'], 'hospital_coverage': [],
 }
 # Optional metadata, supplied after checking the original exports and documenting the join.
 # An accepted entry records provenance; it is not automatic row-level verification.
@@ -104,15 +106,25 @@ def load():
     bad=d[['shot_total','fatal','nonfatal']].notna().all(axis=1) & d.shot_total.ne(d.fatal+d.nonfatal)
     d.loc[bad,['shot_total','fatal','nonfatal']]=np.nan
     d['shot_rate_per_10k']=np.where(d.population.gt(0),d.shot_total/d.population*10000,np.nan)
-    # No routing source or methodology exists in the supplied code. Suppress these estimates.
-    for field in ['profile_trauma_drive_min','profile_nearest_center','profile_clinics']:
-        if not documented(field): d[field]=np.nan
-    if not documented('hospital_coverage'):
-        coverage_geo={'type':'FeatureCollection','features':[]}
+    # Preserve existing project estimates; never silently substitute invented values.
+    for field in ['profile_trauma_drive_min','profile_clinics']:
+        if field not in d: d[field]=np.nan
+        d.loc[d[field].lt(0),field]=np.nan
+    if 'profile_nearest_center' not in d: d['profile_nearest_center']=np.nan
     for field in ['total_costs','net_patient_revenue','charity_care_cost','uncompensated_care_cost']:
         h[field]=pd.to_numeric(h[field],errors='coerce') if field in h and documented('hospital_financials') else np.nan
-    if not documented('hospital_locations'):
-        h=h.iloc[0:0].copy()
+    if not documented('hospital_coverage'):
+        coverage_geo={'type':'FeatureCollection','features':[]}
+    # Historical eviction reference from the local dataset, never assigned to another year.
+    d['eviction_reference']='Unavailable'
+    if 'eviction_filing_rate' in d:
+        for _, group in d.groupby('ca_num'):
+            valid=group[group.eviction_filing_rate.notna()].sort_values('year')
+            for idx, record in group.iterrows():
+                prior=valid[valid.year.le(record.year)]
+                if not prior.empty:
+                    last=prior.iloc[-1]
+                    d.at[idx,'eviction_reference']=f"{last.eviction_filing_rate:.2f} (local {int(last.year)} record; source period unconfirmed)"
     d['ca_num']=d.ca_num.astype(int);d['year']=d.year.astype(int)
     for f in geo['features']: f['properties']['ca_num']=int(f['properties']['ca_num'])
     return d,h,geo,coverage_geo
@@ -338,7 +350,7 @@ with t1:
             cid=int(feature['properties']['ca_num'])
             if cid not in lookup.index: continue
             r=lookup.loc[cid]
-            fields=[('Shooting victims',fmt(r.shot_total)),('Fatal victims',fmt(r.fatal)),('Nonfatal victims',fmt(r.nonfatal)),('Victims per 10k',fmt(r.shot_rate_per_10k,1)),('Poverty (%)',pct(r.pct_poverty)),('Unemployment (%)',pct(r.pct_unemployed)),('Income per person', '$'+fmt(r.per_capita_income)),('Eviction filing rate',fmt(get(r,'eviction_filing_rate'),2)),('Estimated trauma drive (min)',fmt(get(r,'profile_trauma_drive_min'),1)),('Clinics (source estimate)',fmt(get(r,'profile_clinics'))),('Nearest listed trauma center',str(get(r,'profile_nearest_center'))),('Medicaid reliance (%)',pct(get(r,'pct_on_medicaid')))]
+            fields=[('Shooting victims',fmt(r.shot_total)),('Fatal victims',fmt(r.fatal)),('Nonfatal victims',fmt(r.nonfatal)),('Victims per 10k',fmt(r.shot_rate_per_10k,1)),('Poverty (%)',pct(r.pct_poverty)),('Unemployment (%)',pct(r.pct_unemployed)),('Income per person', '$'+fmt(r.per_capita_income)),('Eviction filing rate',get(r,'eviction_reference')),('Estimated trauma drive (min)',fmt(get(r,'profile_trauma_drive_min'),1)),('Clinics (source estimate)',fmt(get(r,'profile_clinics'))),('Nearest listed trauma center',str(get(r,'profile_nearest_center')) if pd.notna(get(r,'profile_nearest_center')) else 'Data unavailable'),('Medicaid reliance (%)',pct(get(r,'pct_on_medicaid')))]
             details=''.join(f'<tr><td style="padding:3px 8px">{html.escape(k)}</td><td><b>{html.escape(str(val))}</b></td></tr>' for k,val in fields)
             popup=folium.Popup(f'<div style="font:13px Arial;width:315px"><h3>{html.escape(str(r.ca_name))} · {year}</h3><table>{details}</table><p style="font-size:11px">Source definitions and years require verification. Travel time is estimated, not EMS response time.</p></div>',max_width=380)
             folium.GeoJson(feature,style_function=style,highlight_function=lambda f:{'weight':3,'color':'#111827','fillOpacity':.88},tooltip=f'{r.ca_name}: {choice} {fmt(get(r,field),1)}',popup=popup).add_to(mp)
@@ -536,13 +548,13 @@ with t2:
         st.error(f'Regression could not be estimated: {exc}')
 
 with t3:
-    st.info('Source policy: Cook County Health and IDPH are reference sources for hospital information; CMS and IDPH are candidate financial sources. Local hospital records without documented provenance are withheld. Routing estimates are unavailable because no routing source or method was supplied.')
+    st.caption('Healthcare access values and hospital locations are existing project estimates; original source periods and methods remain unconfirmed. Unverified financial records are withheld. See Tab 5.')
     st.subheader('Healthcare access and hospital impact')
     st.write('Explore where listed hospitals are located, estimated driving-time coverage, and hospital-wide financial information.')
     st.caption('Travel times are estimates, not measured ambulance response or transport times. Hospital costs are hospital-wide, not shooting-specific.')
     if row is not None:
         a,b,c=st.columns(3)
-        a.metric('Nearest listed center',str(get(row,'profile_nearest_center')))
+        a.metric('Nearest listed center',str(get(row,'profile_nearest_center')) if pd.notna(get(row,'profile_nearest_center')) else 'Data unavailable')
         b.metric('Estimated trauma drive (min)',fmt(get(row,'profile_trauma_drive_min'),1))
         c.metric('Clinics (estimate)',fmt(get(row,'profile_clinics')))
     # Interactive hospital map: highlight Stroger without duplicating its CSV entry.
@@ -704,7 +716,7 @@ with t3:
         key="hospital_map",
         returned_objects=[]
     )
-    st.caption("Navy: Stroger Hospital · Turquoise-blue: other source-documented hospitals, if available. "
+    st.caption("Navy: Stroger Hospital · Turquoise-blue: other locally listed hospitals, if available. "
                "Map coordinates are approximate; confirm locations and trauma designations before publication.")
 
     st.divider()
@@ -773,7 +785,7 @@ with t4:
         'Poverty (%)': 'pct_poverty',
         'Unemployment (%)': 'pct_unemployed',
         'Income per person ($)': 'per_capita_income',
-        **({'Estimated trauma drive (min)': 'profile_trauma_drive_min'} if documented('profile_trauma_drive_min') else {}),
+        'Estimated trauma drive (min)': 'profile_trauma_drive_min',
     }
     c_filter, c_sort = st.columns([1.6, 1])
     with c_filter:
@@ -1082,6 +1094,8 @@ with t5:
         'cch':'Official Stroger Hospital information.',
         'community_acs':'Community-area ACS estimates; confirm release and geography before use.',
         'osm':'Map background attribution only; not a routing or travel-time dataset.',
+        'cdph_clinics':'Official directory of listed primary care community health centers; candidate source for replacement clinic counts, not yet imported.',
+        'osrm':'Candidate method for modeled road travel times; not the confirmed source of existing project estimates.',
     }
     for source_id, purpose in purposes.items():
         agency,title,url=SOURCE_REGISTRY[source_id]
@@ -1098,7 +1112,7 @@ with t5:
     audit_df=pd.DataFrame(audit)
     st.dataframe(audit_df,hide_index=True,use_container_width=True)
     st.download_button('Download source audit CSV',audit_df.to_csv(index=False).encode('utf-8'),file_name='source_audit.csv',mime='text/csv')
-    st.caption('Source documentation file: data/source_provenance.json. Each field entry needs source_ids, reference_period, original_file and method. Add entries only after reviewing the original export and its transformation. Routing fields require a separately approved routing source and method before use.')
+    st.caption('Source documentation file: data/source_provenance.json. Each field entry needs source_ids, reference_period, original_file and method. Add entries only after reviewing the original export and its transformation. Existing routing fields remain provisional until their source and method are documented.')
     st.caption('Current-year totals may be incomplete. Full-year year-over-year comparisons are disabled for the current calendar year.')
     k1,k2,k3,k4=st.columns(4)
     k1.metric('Community areas',fmt(D.ca_num.nunique()))
@@ -1124,7 +1138,7 @@ with t5:
 
 **What-if controls:** Sliders change model inputs and display the relative fitted rate. They **do not** estimate the effect of a real intervention. Repeated area observations, time-varying measurement and unmeasured confounders limit inference. The model has not been independently validated for forecasting or policy use.''')
     with st.expander('Hospital access and financial methodology'):
-        st.markdown('''**Access:** Travel times and coverage polygons are withheld until a routing source and method are approved and documented. They are not ambulance response times, patient transport times, or observed patient catchment areas.
+        st.markdown('''**Access:** Existing travel times are displayed as unverified project estimates. Coverage polygons require documented routing methodology. They are not ambulance response times, patient transport times, or observed patient catchment areas.
 
 **Finances:** Hospital records show hospital-wide financial indicators. They cannot establish the cost, reimbursement, uncompensated care, or net financial loss attributable specifically to gunshot patients. Financial reporting years may differ from shooting years.''')
     st.markdown('### 3. Understanding the findings')
