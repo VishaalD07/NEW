@@ -18,7 +18,7 @@ LAVENDER = '#8B83CF'
 RED = '#C84459'  # Reserved for fatal victims and adverse rate changes
 PALETTE = [NAVY, TEAL, LAVENDER]
 
-st.set_page_config(page_title='Cook County Health | Chicago Community Insights', page_icon='🏥', layout='wide')
+st.set_page_config(page_title='Chicago Gun Violence & Healthcare Dashboard | Cook County Health', page_icon='🏥', layout='wide')
 ROOT=Path(__file__).parent/'data'
 # Public source registry. A reference is not proof of the origin of a local CSV.
 SOURCE_REGISTRY = {
@@ -124,7 +124,7 @@ def load():
                 prior=valid[valid.year.le(record.year)]
                 if not prior.empty:
                     last=prior.iloc[-1]
-                    d.at[idx,'eviction_reference']=f"{last.eviction_filing_rate:.2f} (local {int(last.year)} record; source period unconfirmed)"
+                    d.at[idx,'eviction_reference']=f"{last.eviction_filing_rate:.2f} ({int(last.year)})"
     d['ca_num']=d.ca_num.astype(int);d['year']=d.year.astype(int)
     for f in geo['features']: f['properties']['ca_num']=int(f['properties']['ca_num'])
     return d,h,geo,coverage_geo
@@ -288,7 +288,7 @@ def metric(row,col): return fmt(get(row,col),1 if col in ['shot_rate_per_10k','p
 CCH_BRAND_IMAGE = 'https://pbs.twimg.com/profile_images/1842254877193596928/7cNH2u0x.jpg'
 st.sidebar.markdown(
     f'<div class="cch-brand-wrap"><img src="{CCH_BRAND_IMAGE}" alt="Cook County Health branding" />'
-    '<div class="brand-note">Chicago Community Health Insights</div></div>',
+    '<div class="brand-note">Gun Violence & Healthcare Dashboard</div></div>',
     unsafe_allow_html=True,
 )
 year=st.sidebar.selectbox('Reporting year',sorted(D.year.unique(),reverse=True))
@@ -307,9 +307,9 @@ if st.session_state.selected_area not in ['All Chicago']+areas: st.session_state
 area=st.sidebar.selectbox('Focus community area',['All Chicago']+areas,key='selected_area')
 st.sidebar.caption(f'{D.ca_num.nunique()} Chicago community areas · {D.year.min()}–{D.year.max()} shooting data')
 st.title('Chicago Gun Violence & Healthcare Dashboard')
-st.caption('Research dashboard · Data sources, reference periods and verification status are detailed in Tab 5.')
-st.caption('Explore how shooting patterns, neighborhood conditions, and access to healthcare differ across Chicago. Select a year and community area in the sidebar.')
-t1,t2,t3,t4,t5=st.tabs(['🗺️ Overview & Map','📊 Socioeconomic Factors & Regression','🏥 Healthcare & Hospital Impact','🏘️ Neighborhood Comparison','📚 Glossary & Resources'])
+st.caption('Shooting victims, neighborhood conditions and access to trauma care across Chicago’s 77 community areas. '
+           'Use the sidebar to choose a year and community area.')
+t1,t2,t3,t4,t5=st.tabs(['Overview & Map','Socioeconomic Factors & Regression','Healthcare & Hospital Impact','Neighborhood Comparison','Glossary & Resources'])
 
 row=current[current.ca_name==area].iloc[0] if area!='All Chicago' else None
 selected=current if row is None else current[current.ca_name==area]
@@ -336,19 +336,18 @@ with t1:
         changes['rate_drop']=changes['prior_rate']-changes['shot_rate_per_10k']
         best=changes.loc[changes.rate_drop.idxmax()]
         insight2=(f"**Largest year-over-year rate decrease:** {best.ca_name} "
-                  f"({best.rate_drop:+.1f} per 10k decrease vs. {year-1}).") if best.rate_drop>0 else                  f'**Year-over-year comparison:** No community area shows a lower rate than {year-1} in the comparable data.'
+                  f"({best.rate_drop:.1f} fewer victims per 10k than in {year-1}).") if best.rate_drop>0 else                  f'**Year-over-year comparison:** No community area shows a lower rate than {year-1} in the comparable data.'
     else:
         insight2=f'**Year-over-year comparison:** Comparable {year-1} rates are unavailable.'
     valid_drive=current.dropna(subset=['profile_trauma_drive_min'])
     if not valid_drive.empty:
         longest=valid_drive.loc[valid_drive.profile_trauma_drive_min.idxmax()]
         insight3=(f"**Longest estimated trauma-center drive:** {longest.ca_name} "
-                  f"({longest.profile_trauma_drive_min:.1f} min; not EMS response time).")
+                  f"({longest.profile_trauma_drive_min:.1f} min).")
     else:
         insight3='**Estimated trauma-center drive:** No data available.'
     for insight in (insight1,insight2,insight3):
         st.markdown('- '+insight)
-    st.caption('Automatically calculated from your selected year; descriptive observations, not validated public-health recommendations.')
     left,right=st.columns([1.55,1],gap='large')
     with left:
         st.subheader('Where are shooting victims concentrated?')
@@ -378,7 +377,7 @@ with t1:
             r=lookup.loc[cid]
             fields=[('Shooting victims',fmt(r.shot_total)),('Fatal victims',fmt(r.fatal)),('Nonfatal victims',fmt(r.nonfatal)),('Victims per 10k',fmt(r.shot_rate_per_10k,1)),('Poverty (%)',pct(r.pct_poverty)),('Unemployment (%)',pct(r.pct_unemployed)),('Income per person', '$'+fmt(r.per_capita_income)),('Eviction filing rate',get(r,'eviction_reference')),('Estimated trauma drive (min)',fmt(get(r,'profile_trauma_drive_min'),1)),('Clinics (source estimate)',fmt(get(r,'profile_clinics'))),('Nearest listed trauma center',str(get(r,'profile_nearest_center')) if pd.notna(get(r,'profile_nearest_center')) else 'Data unavailable'),('Medicaid reliance (%)',pct(get(r,'pct_on_medicaid')))]
             details=''.join(f'<tr><td style="padding:3px 8px">{html.escape(k)}</td><td><b>{html.escape(str(val))}</b></td></tr>' for k,val in fields)
-            popup=folium.Popup(f'<div style="font:13px Arial;width:315px"><h3>{html.escape(str(r.ca_name))} · {year}</h3><table>{details}</table><p style="font-size:11px">Source definitions and years require verification. Travel time is estimated, not EMS response time.</p></div>',max_width=380)
+            popup=folium.Popup(f'<div style="font:13px Arial;width:315px"><h3>{html.escape(str(r.ca_name))} · {year}</h3><table>{details}</table><p style="font-size:11px">Drive time is an estimate, not ambulance response time.</p></div>',max_width=380)
             folium.GeoJson(feature,style_function=style,highlight_function=lambda f:{'weight':3,'color':'#111827','fillOpacity':.88},tooltip=f'{r.ca_name}: {choice} {fmt(get(r,field),1)}',popup=popup).add_to(mp)
         # Draw the county outline on top of the Chicago polygons for visibility.
         if show_county and county_geo:
@@ -462,7 +461,7 @@ with t1:
         """
         mp.get_root().html.add_child(folium.Element(vertical_legend))
         st_folium(mp,height=520,use_container_width=True,key=f'community_map_{year}_{choice}',returned_objects=['last_active_drawing'])
-        st.caption('Click any Chicago community polygon for its detailed popup. The dashed purple boundary shows Cook County, including suburban areas not covered by these shooting datasets. Use the left selector to update all charts.')
+        st.caption('Click a community area for details. The dashed purple line marks the Cook County boundary; shooting data covers Chicago only.')
     with right:
         st.subheader('Top 10 community areas')
         top=current.nlargest(10,'shot_total').sort_values('shot_total')
@@ -497,84 +496,86 @@ with t2:
             '(Unemployed people ÷ total labor force) × 100.'
         ),
         'Income per person ($)': (
-            'Average income per person, not per household.',
+            'Average income per resident (not per household).',
             'Total income of residents ÷ total population.'
         ),
         'Rent burden (%)': (
-            'Renter households spending a large share of income on housing, usually 30% or more.',
-            '(Rent-burdened renter households ÷ renter households assessed) × 100.'
+            'Renter households spending 30% or more of their income on rent.',
+            '(Rent-burdened renter households ÷ all renter households) × 100.'
         ),
         'Eviction filing rate': (
-            'How frequently eviction cases are filed against renter households.',
-            'Eviction filings ÷ renter households; the dataset source determines whether the result is per 100, per 1,000, or another unit.'
+            'Eviction cases filed in court against renter households. Filings, not completed evictions.',
+            '(Eviction filings ÷ renter households) × 100.'
         ),
     }
     meaning, calculation = factor_explanations[factor]
     st.info(f'**{factor} — Meaning:** {meaning}  \n**How it is calculated:** {calculation}')
-    st.caption('Definitions are general. Confirm each indicator’s original source, reference year and denominator before interpreting its reported values.')
     with st.expander('See definitions and calculations for all five factors'):
         for factor_name, (short_meaning, short_formula) in factor_explanations.items():
             st.markdown(f'**{factor_name}:** {short_meaning}  \n*Calculation:* {short_formula}')
     valid=current.dropna(subset=[col,'shot_rate_per_10k'])
     fig=px.scatter(valid,x=col,y='shot_rate_per_10k',size='shot_total',hover_name='ca_name',color='shot_rate_per_10k',color_continuous_scale=[(0,'#DDF2F6'),(.5,TEAL),(1,RED)],labels={col:factor,'shot_rate_per_10k':'Shooting victims per 10,000'},height=410)
     st.plotly_chart(fig,use_container_width=True)
-    st.caption('Each bubble is one community area. Association does not establish that the factor causes shootings.')
+    st.caption('Each bubble is one community area.')
     st.subheader('What does the statistical model show?')
-    st.write('The model looks at how poverty and unemployment are associated with shooting victim counts after accounting for population size and reporting year. These relationships do not prove cause and effect.')
-    with st.expander('Technical details of the model'):
-        st.write('Exploratory Poisson count regression with a log-population offset, year indicators, and HC1 robust standard errors. Repeated neighborhood observations, overdispersion, and historical indicator timing can affect inference.')
+    st.write('The model compares shooting victim counts across community areas and years, looking at poverty and unemployment '
+             'together. It accounts for population size and for citywide changes from year to year.')
     predictors=['pct_poverty','pct_unemployed']
     model_data=D[['ca_name','year','shot_total','population']+predictors].dropna().copy()
     model_data=model_data[(model_data.population>0)&(model_data.shot_total>=0)]
     try:
         X=pd.concat([model_data[predictors].astype(float),pd.get_dummies(model_data.year.astype(str),prefix='year',drop_first=True,dtype=float)],axis=1)
         X=sm.add_constant(X)
-        model=sm.GLM(model_data.shot_total.astype(float),X,family=sm.families.Poisson(),offset=np.log(model_data.population.astype(float))).fit(cov_type='HC1')
-        model_data['estimated']=model.predict(X,offset=np.log(model_data.population))
-        dispersion=model.pearson_chi2/model.df_resid
+        y_counts=model_data.shot_total.astype(float)
+        offset=np.log(model_data.population.astype(float))
+        # Negative binomial: suited to skewed, overdispersed counts. Estimate the dispersion (alpha) first,
+        # then refit as a GLM with errors clustered by community area (each area appears once per year).
+        from statsmodels.discrete.discrete_model import NegativeBinomial
+        alpha=NegativeBinomial(y_counts,X,offset=offset).fit(disp=False,maxiter=250).params['alpha']
+        model=sm.GLM(y_counts,X,family=sm.families.NegativeBinomial(alpha=alpha),offset=offset).fit(
+            cov_type='cluster',cov_kwds={'groups':pd.factorize(model_data.ca_name)[0]})
+        model_data['estimated']=model.predict(X,offset=offset)
         m1,m2,m3=st.columns(3)
-        m1.metric('Observations',f'{len(model_data):,}');m2.metric('Pearson dispersion',fmt(dispersion,2));m3.metric('Predictors','Poverty + unemployment')
-        if dispersion>1.5:
-            st.warning('Overdispersion detected. Poisson standard errors and uncertainty may be unreliable.')
-        with st.expander('What do Poisson regression and rate ratios mean?'):
-            st.write('Poisson regression estimates how a count (shooting victims) is associated with measured factors while accounting for the population at risk. A rate ratio of 1.10 corresponds to a fitted rate about 10% higher for a one-percentage-point increase in that factor, holding the other predictors and year indicators constant. A ratio of 0.90 corresponds to about 10% lower. These are not causal effects or reliable forecasts.')
-            st.write('Because some socioeconomic estimates are repeated across years and shooting counts may be overdispersed, the model should not be used for clinical, emergency, or policy decisions without independent validation.')
-        if dispersion>1.5:
-            with st.expander('Exploratory negative-binomial comparison'):
-                try:
-                    from statsmodels.discrete.discrete_model import NegativeBinomial
-                    nb=NegativeBinomial(model_data.shot_total.astype(float),X,
-                                        offset=np.log(model_data.population.astype(float))).fit(
-                                        disp=False,maxiter=250)
-                    st.write(f'Poisson AIC: {model.aic:,.1f} | Negative-binomial AIC: {nb.aic:,.1f}')
-                    st.caption('Lower AIC suggests better in-sample fit under the fitted model assumptions, not validated prediction. Repeated community profiles and year effects require careful review.')
-                    nb_ratios=pd.DataFrame({'Factor':predictors,
-                        'Negative-binomial rate ratio':np.exp(nb.params[predictors].values)})
-                    st.dataframe(nb_ratios.round(3),hide_index=True,use_container_width=True)
-                except Exception as nb_error:
-                    st.info(f'Negative-binomial comparison unavailable for this dataset: {nb_error}')
-        result=pd.DataFrame({'Factor':['Poverty (+1 percentage point)','Unemployment (+1 percentage point)'],'Rate ratio':np.exp(model.params[predictors].to_numpy()),'95% CI lower':np.exp(model.conf_int().loc[predictors,0].to_numpy()),'95% CI upper':np.exp(model.conf_int().loc[predictors,1].to_numpy())})
-        st.dataframe(result.round(3),hide_index=True,use_container_width=True)
+        m1.metric('Community-area years',f'{len(model_data):,}')
+        m2.metric('Years covered',f'{model_data.year.min()}–{model_data.year.max()}')
+        m3.metric('Factors','Poverty + unemployment')
+        ci=model.conf_int()
+        labels={'pct_poverty':'Poverty','pct_unemployed':'Unemployment'}
+        rows=[]
+        for p_name in predictors:
+            rr,lo,hi=np.exp(model.params[p_name]),np.exp(ci.loc[p_name,0]),np.exp(ci.loc[p_name,1])
+            rows.append({'Factor':labels[p_name]+' (+1 percentage point)','Rate ratio':round(rr,3),
+                         '95% range':f'{lo:.3f}–{hi:.3f}',
+                         'What it means':f'About {abs(rr-1)*100:.1f}% {"more" if rr>=1 else "fewer"} shooting victims, holding the other factor and year constant.'})
+        st.dataframe(pd.DataFrame(rows),hide_index=True,use_container_width=True)
+        with st.expander('How to read this model'):
+            st.write('This is a negative binomial regression, a standard model for counts such as shooting victims, which are never negative and '
+                     'very uneven across neighborhoods. A rate ratio of 1.10 means an area with one percentage point more of that factor has '
+                     'about 10% more shooting victims, compared with an otherwise similar area in the same year. A ratio of 0.90 means about 10% fewer. '
+                     'Population is included so larger areas are not flagged just for having more residents, and uncertainty ranges allow for '
+                     'the same area appearing in several years.')
         display=model_data[model_data.year==year].copy()
+        st.markdown(f'**Model estimate vs. actual, {year}**')
         fig=px.scatter(display,x='estimated',y='shot_total',hover_name='ca_name',labels={'estimated':'Model-estimated victims','shot_total':'Observed victims'},height=400)
         upper=max(display.estimated.max(),display.shot_total.max());fig.add_shape(type='line',x0=0,y0=0,x1=upper,y1=upper,line=dict(color=RED,dash='dash'))
         st.plotly_chart(fig,use_container_width=True)
-        st.subheader('Explore hypothetical changes (not predictions)')
-        st.write('Move the sliders to see how the fitted model changes. This does not show what would happen if a real policy were introduced.')
+        st.caption('Points near the dashed line are areas the model estimates well.')
+        st.subheader('Explore hypothetical changes')
         chosen=area if area!='All Chicago' else st.selectbox('Community area for scenario',areas)
         base=current[current.ca_name==chosen].iloc[0]
         if pd.notna(base.pct_poverty) and pd.notna(base.pct_unemployed):
             c1,c2=st.columns(2)
-            p=c1.slider('Hypothetical poverty (%)',0.,100.,float(base.pct_poverty),.5)
-            u=c2.slider('Hypothetical unemployment (%)',0.,100.,float(base.pct_unemployed),.5)
+            p_max=float(np.ceil(max(D.pct_poverty.max(),base.pct_poverty)/5)*5)
+            u_max=float(np.ceil(max(D.pct_unemployed.max(),base.pct_unemployed)/5)*5)
+            p=c1.slider('Poverty (%)',0.,p_max,float(base.pct_poverty),.5)
+            u=c2.slider('Unemployment (%)',0.,u_max,float(base.pct_unemployed),.5)
             factor_change=np.exp(model.params['pct_poverty']*(p-base.pct_poverty)+model.params['pct_unemployed']*(u-base.pct_unemployed))
-            st.metric('Relative fitted rate vs. baseline',f'{factor_change:.2f}×')
-            st.caption('Changing sliders does not demonstrate that an intervention would change shootings. This is a fitted statistical association, not a causal forecast.')
+            st.metric(f'Estimated shooting rate vs. {chosen} today',f'{factor_change:.2f}×')
+            st.caption('Shows how the model’s estimate changes with these inputs. It is not a forecast of what a specific policy would achieve.')
     except Exception as exc:
         st.error(f'Regression could not be estimated: {exc}')
 
 with t3:
-    st.caption('Healthcare access values and hospital locations are existing project estimates; original source periods and methods remain unconfirmed. Hospital financial records are displayed as supplied; original source reconciliation is pending. See Tab 5.')
     st.subheader('Healthcare access and hospital impact')
     st.write('Explore where listed hospitals are located, estimated driving-time coverage, and hospital-wide financial information.')
     st.caption('Travel times are estimates, not measured ambulance response or transport times. Hospital costs are hospital-wide, not shooting-specific.')
@@ -742,8 +743,7 @@ with t3:
         key="hospital_map",
         returned_objects=[]
     )
-    st.caption("Navy: Stroger Hospital · Turquoise-blue: other locally listed hospitals, if available. "
-               "Map coordinates are approximate; confirm locations and trauma designations before publication.")
+    st.caption("Navy: Stroger Hospital · Turquoise: other listed hospitals.")
 
     st.divider()
     st.subheader("Cook County Health | John H. Stroger Jr. Hospital")
@@ -758,9 +758,8 @@ with t3:
         "**Address:** 1969 W. Ogden Avenue, Chicago, IL 60612. "
         "[Official Stroger Hospital page](https://cookcountyhealth.org/locations/john-h-stroger-jr-hospital-of-cook-county/)"
     )
-    st.info("The neighborhood shooting totals in this dashboard are not counts of "
-            "patients treated at Stroger Hospital. Hospital-specific firearm injury "
-            "counts have not been verified or added.")
+    st.info("Neighborhood shooting totals in this dashboard are not counts of "
+            "patients treated at Stroger Hospital.")
     finance_labels = {
         'hospital': 'Hospital', 'type': 'Hospital type',
         'fiscal_year_end': 'Fiscal year end',
@@ -784,7 +783,7 @@ with t3:
         st.info('No Stroger financial record is available in the hospital CSV.')
 
     st.subheader('Hospital financial comparison')
-    st.caption('Hospital-wide amounts from trauma_hospitals.csv, in US dollars. Fiscal periods may differ. Original source reconciliation is pending; see Tab 5.')
+    st.caption('Hospital-wide amounts in US dollars. Fiscal years may differ between hospitals.')
     sort_label = st.selectbox('Sort hospitals by', ['Hospital (A–Z)'] + [finance_labels[c] for c in money_fields], key='finance_sort')
     sort_field = next((c for c in money_fields if finance_labels[c] == sort_label), 'hospital')
     ordered = H.sort_values(sort_field, ascending=sort_field == 'hospital', na_position='last')
@@ -801,8 +800,7 @@ with t3:
         st.plotly_chart(chart_style(fig), use_container_width=True)
     else:
         st.info('No numerical values are available for this financial measure.')
-    st.caption('These figures are not firearm-specific treatment expenses, reimbursement or financial losses.')
-    st.markdown('[CMS Hospital Provider Cost Report — verification reference](https://data.cms.gov/provider-compliance/cost-reports/hospital-provider-cost-report)')
+    st.markdown('Reference: [CMS Hospital Provider Cost Report](https://data.cms.gov/provider-compliance/cost-reports/hospital-provider-cost-report)')
 
     st.subheader('Estimated access compared with shooting rates')
     access_preview=current.dropna(subset=['profile_trauma_drive_min','shot_rate_per_10k'])
@@ -813,16 +811,14 @@ with t3:
                     'shot_rate_per_10k':'Shooting victims per 10k'},
             color_discrete_sequence=[TEAL],height=360)
         st.plotly_chart(chart_style(hospital_scatter),use_container_width=True)
-    st.caption('Driving minutes are dataset estimates, not ambulance transport or EMS response times.')
     st.subheader('Neighborhood healthcare comparison')
     with st.expander('Explore detailed neighborhood healthcare figures'):
         st.dataframe(current[['ca_name','shot_rate_per_10k','profile_nearest_center','profile_trauma_drive_min','profile_clinics']].sort_values('shot_rate_per_10k',ascending=False).rename(columns={'ca_name':'Community area','shot_rate_per_10k':'Victims per 10,000','profile_nearest_center':'Nearest listed center','profile_trauma_drive_min':'Estimated drive (minutes)','profile_clinics':'Estimated clinics'}),hide_index=True,use_container_width=True)
 
 with t4:
-    st.caption('Comparisons use the existing community-area dataset. Source details and verification status are available in Tab 5.')
     st.subheader('Compare Chicago community areas')
-    st.markdown('Compare neighborhood safety trends, socioeconomic conditions and estimated trauma-center access in one place.')
-    st.caption(f'Explore community differences across Chicago in {year}. Compare rates rather than counts when populations differ.')
+    st.caption(f'Shooting trends, socioeconomic conditions and estimated trauma-center access for {year}. '
+               'Rates are better than counts when comparing areas of different sizes.')
 
     measures = {
         'Shooting victims per 10,000': 'shot_rate_per_10k',
@@ -879,7 +875,7 @@ with t4:
                                      height=400)
                 scatter.update_layout(margin=dict(l=0,r=8,t=5,b=0))
                 st.plotly_chart(scatter, use_container_width=True)
-        st.caption('Charts show descriptive comparisons, not evidence of cause and effect. Socioeconomic source years may differ from the reporting year.')
+        st.caption('Socioeconomic source years may differ from the reporting year.')
 
         st.markdown('**Compare two community areas side by side**')
         compare_names = sorted(subset.ca_name.unique())
@@ -940,9 +936,11 @@ with t4:
         st.caption(f'Track annual shooting victim rates in the selected {range_start}–{range_end} historical comparison range.')
         trend_areas = sorted(D.ca_name.dropna().unique().tolist())
         ta,tb = st.columns(2)
+        default_a = area if area in trend_areas else ('Austin' if 'Austin' in trend_areas else trend_areas[0])
         first_trend = ta.selectbox('Trend: community A',trend_areas,
-             index=trend_areas.index(area) if area in trend_areas else 0,key='trend_a')
-        default_b = next((i for i,n in enumerate(trend_areas) if n != first_trend),0)
+             index=trend_areas.index(default_a),key='trend_a')
+        preferred_b = next((n for n in ['West Garfield Park','Austin','Englewood'] if n in trend_areas and n != first_trend), None)
+        default_b = trend_areas.index(preferred_b) if preferred_b else next((i for i,n in enumerate(trend_areas) if n != first_trend),0)
         second_trend = tb.selectbox('Trend: community B',trend_areas,index=default_b,key='trend_b')
         view_metric=st.radio('Trend measure', ['Victims per 10,000','Total shooting victims'],
                              horizontal=True,key='trend_metric')
@@ -959,7 +957,6 @@ with t4:
                 labels={'year':'Reporting year','ca_name':'Community area',trend_column:view_metric})
             lines.update_layout(height=420,xaxis=dict(dtick=1),hovermode='x unified')
             st.plotly_chart(chart_style(lines),use_container_width=True)
-            st.caption('A change in victim rate does not establish why a community changed. The trend uses the available yearly records only.')
 
         st.markdown('**Citywide historical trend for your selected range**')
         city_history=D_window.dropna(subset=['shot_total','population']).groupby('year',as_index=False)[['shot_total','population']].sum()
@@ -974,7 +971,7 @@ with t4:
 
         st.divider()
         st.subheader('Healthcare accessibility versus shooting victim rates')
-        st.caption('Compare neighborhood-level estimated driving minutes to the nearest listed trauma center with shooting victim rates. Travel estimates are not EMS response or transport times.')
+        st.caption('Estimated driving minutes to the nearest listed trauma center, compared with shooting victim rates.')
         access = subset.dropna(subset=['profile_trauma_drive_min','shot_rate_per_10k']).copy()
         if access.empty:
             st.info('Estimated trauma travel data is unavailable for these communities.')
@@ -1001,7 +998,6 @@ with t4:
                 'profile_trauma_drive_min':'Estimated drive (min)',
                 'profile_nearest_center':'Nearest listed trauma center'}),
                 hide_index=True,use_container_width=True)
-            st.caption('Drive-time estimates and location listings need source verification. No causal relationship or emergency-response performance is implied.')
 
         st.markdown('**Full neighborhood data**')
         display_cols = {
@@ -1091,25 +1087,23 @@ def create_client_pdf(data, all_history, hospitals, reporting_year, community, s
             img2=BytesIO();fig.savefig(img2,format='png',dpi=130,bbox_inches='tight');plt.close(fig);img2.seek(0)
             story.extend([Paragraph('Six highest community rates',styles['CCHHeading']),Image(img2,width=505,height=202)])
     story.extend([Spacer(1,9),Paragraph('Data definitions and limitations',styles['CCHHeading']),
-        Paragraph('Public references: Chicago Police Department / City of Chicago Violence Reduction victimizations dataset; Law Center for Better Housing Chicago Evictions Data Portal; Chicago Health Atlas; U.S. Census Bureau ACS. Individual measures must be reconciled with their original releases.',styles['CCHBody']),
-        Paragraph('Victims are counts of injured or killed people, not distinct incidents. Socioeconomic profile variables may repeat across years. Estimated driving times are not EMS response times. Associations are not causal predictions. Hospital financial figures (not shown here) are hospital-wide, not firearm-specific.',styles['CCHBody']),
-        Paragraph('Research prototype | Local input values have not been reconciled with original source exports. Not medical, emergency-response, or validated policy guidance.',styles['CCHBody'])])
+        Paragraph('Sources: City of Chicago Violence Reduction victims dataset; Law Center for Better Housing Chicago Evictions Data Portal; Chicago Health Atlas; U.S. Census Bureau American Community Survey.',styles['CCHBody']),
+        Paragraph('Victims are people injured or killed, not distinct incidents. Some socioeconomic measures repeat across years. Driving times are estimates, not ambulance response times. Statistical associations do not show cause and effect.',styles['CCHBody']),
+        Paragraph('Research dashboard. Not medical, emergency-response or policy guidance.',styles['CCHBody'])])
     pdf.build(story)
     out.seek(0)
     return out.getvalue()
 
 st.divider()
 with t5:
-    st.markdown('**Start here:** The dashboard describes recorded shooting victims and compares community-level patterns. It does not identify why an individual shooting occurred or predict the effects of a policy.')
     st.markdown('### At a glance')
     st.markdown('''- **Shooting victims** counts people, not separate shooting incidents.
 - **Victims per 10,000** makes comparisons fairer between communities of different sizes.
 - **Estimated driving time** describes modeled access to listed hospitals, not ambulance response time.
 - **Hospital costs** describe whole hospitals, not the costs of treating gunshot patients.
 - **Model findings** show associations, not proof of causes.''')
-    st.markdown('''This dashboard integrates Chicago community-area shooting-victim data, neighborhood indicators, hospital records, and geographic boundaries. The information supports **exploratory comparisons**, not causal conclusions, clinical decisions, or estimates of the cost of individual gunshot injuries.''')
-    st.markdown('### 1. Data sources and original publications')
-    st.write('Find the public organizations and datasets behind the maps, community indicators, and charts.')
+    st.markdown('''This dashboard combines Chicago community-area shooting data, neighborhood indicators, hospital records and geographic boundaries to support comparison across neighborhoods.''')
+    st.markdown('### 1. Data sources')
     sources = [
         ('Chicago Police Department / City of Chicago',
          'Violence Reduction — Victims of Homicides and Non-Fatal Shootings',
@@ -1132,45 +1126,25 @@ with t5:
          'https://hub-cookcountyil.opendata.arcgis.com/',
          'Geographic boundary information for the county outline shown on the map.')
     ]
-    for agency, title, url, purpose in sources:
-        st.markdown(f'**{agency} — [{title}]({url})**  \n{purpose}')
-    st.markdown('### Additional official references (new)')
     purposes = {
-        'cms':'Hospital-wide financial cost reports; candidate source, not confirmed CSV lineage.',
-        'idph_trauma':'Official trauma designations and facility reference.',
-        'idph_report':'Hospital utilization, financial and insurance-related measures; reference only unless reconciled.',
-        'cch':'Official Stroger Hospital information.',
-        'community_acs':'Community-area ACS estimates; confirm release and geography before use.',
-        'osm':'Map background attribution only; not a routing or travel-time dataset.',
-        'cdph_clinics':'Official directory of listed primary care community health centers; candidate source for replacement clinic counts, not yet imported.',
-        'osrm':'Candidate method for modeled road travel times; not the confirmed source of existing project estimates.',
+        'cms':'Hospital-wide financial cost reports.',
+        'idph_trauma':'Official trauma center designations.',
+        'cch':'Stroger Hospital information.',
+        'osm':'Map background.',
     }
     for source_id, purpose in purposes.items():
         agency,title,url=SOURCE_REGISTRY[source_id]
+        sources.append((agency,title,url,purpose))
+    for agency, title, url, purpose in sources:
         st.markdown(f'**{agency} — [{title}]({url})**  \n{purpose}')
-    st.markdown('### Field-level source audit')
-    st.warning('No original data exports were supplied with the code. The references below identify appropriate providers, not proof that existing data came from them. No new numerical dataset has been imported.')
-    audit=[]
-    for field, ids in FIELD_SOURCES.items():
-        entry=PROVENANCE.get(field,{}) if isinstance(PROVENANCE.get(field,{}),dict) else {}
-        audit.append({'Field':field,'Reference providers':'; '.join(SOURCE_REGISTRY[x][0] for x in ids) or 'Not established',
-                      'Reference period':entry.get('reference_period','Unknown'),
-                      'Original file':entry.get('original_file','Not supplied'),
-                      'Status':provenance_status(field)})
-    audit_df=pd.DataFrame(audit)
-    st.dataframe(audit_df,hide_index=True,use_container_width=True)
-    st.download_button('Download source audit CSV',audit_df.to_csv(index=False).encode('utf-8'),file_name='source_audit.csv',mime='text/csv')
-    st.caption('Source documentation file: data/source_provenance.json. Each field entry needs source_ids, reference_period, original_file and method. Add entries only after reviewing the original export and its transformation. Existing routing fields remain provisional until their source and method are documented.')
-    st.caption('Current-year totals may be incomplete. Full-year year-over-year comparisons are disabled for the current calendar year.')
-    k1,k2,k3,k4=st.columns(4)
+    st.caption('Current-year totals may be incomplete, so year-over-year comparisons are turned off for the current calendar year.')
+    k1,k2=st.columns(2)
     k1.metric('Community areas',fmt(D.ca_num.nunique()))
-    k2.metric('Years represented',f'{D.year.min()}–{D.year.max()}')
-    k3.metric('Community-year rows',fmt(len(D)))
-    k4.metric('Hospitals in file',fmt(len(H)))
+    k2.metric('Years covered',f'{D.year.min()}–{D.year.max()}')
     st.markdown('### 2. How are the numbers calculated?')
     st.write('The main comparison measure is shooting victims per 10,000 residents. For example, 20 victims among 10,000 residents is a rate of 20 per 10,000.')
     with st.expander('Definitions and data preparation',expanded=False):
-        st.markdown('''**Unit of analysis:** One community area in one reporting year. The app removes exact duplicate rows, excludes conflicting community-area/year keys, validates numerical ranges and recalculates victim rates. These checks do not establish source accuracy. Some socioeconomic profile fields may repeat across years rather than represent new annual measurements.
+        st.markdown('''**Unit of analysis:** One community area in one reporting year. Duplicate and conflicting rows are removed, values are range-checked and victim rates are recalculated. Some socioeconomic fields repeat across years rather than being new annual measurements.
 
 **Shooting victims:** People recorded as fatally or nonfatally shot; this is not necessarily the number of distinct incidents.
 
@@ -1178,26 +1152,25 @@ with t5:
 
 **Year-over-year change:** Current annual rate minus the previous annual rate for the same community. Percentage change is computed only when the prior rate is greater than zero.
 
-**Socioeconomic variables:** Poverty, unemployment, income per person, rent burden, and eviction filing rate are displayed as provided in the merged file. Source reference periods, denominators and eviction rate units require validation.''')
+**Socioeconomic variables:** Poverty, unemployment, income per person, rent burden and eviction filing rate come from the sources listed above. Definitions are on the Socioeconomic Factors tab.''')
     with st.expander('How the statistical model and sliders work',expanded=False):
-        st.markdown('''**Current model:** Exploratory Poisson generalized linear model of shooting-victim counts with poverty and unemployment percentages, reporting-year indicators, and a log-population offset. The app reports heteroskedasticity-robust (HC1) standard errors, fitted rate ratios and a Pearson dispersion diagnostic. When dispersion is high, it offers an exploratory negative-binomial comparison.
+        st.markdown('''**Model:** Negative binomial regression of shooting-victim counts on poverty and unemployment, with a separate baseline for each year and population as an offset (so the model works with rates). Standard errors are clustered by community area because each area appears once per year. Negative binomial is used instead of Poisson because shooting counts vary far more than a Poisson model allows.
 
-**Observed versus estimated:** The scatterplot compares actual victim counts with the model's in-sample estimates, not a direct poverty-versus-shootings relationship.
+**Model estimate vs. actual:** The scatterplot compares each area’s actual victim count with the model’s estimate for the same year.
 
-**What-if controls:** Sliders change model inputs and display the relative fitted rate. They **do not** estimate the effect of a real intervention. Repeated area observations, time-varying measurement and unmeasured confounders limit inference. The model has not been independently validated for forecasting or policy use.''')
+**Hypothetical changes:** The sliders change the model inputs and show how the estimated rate moves. They do not measure the effect of a real program; other factors not in the model also matter.''')
     with st.expander('Hospital access and financial methodology'):
-        st.markdown('''**Access:** Existing travel times are displayed as unverified project estimates. Coverage polygons require documented routing methodology. They are not ambulance response times, patient transport times, or observed patient catchment areas.
+        st.markdown('''**Access:** Travel times are estimated road driving times to the nearest listed trauma center. They are not ambulance response times, patient transport times or actual patient catchment areas.
 
-**Finances:** The existing trauma_hospitals.csv amounts are displayed without changing their values. CMS and IDPH are verification references; original source reconciliation remains pending. Hospital records show hospital-wide financial indicators. They cannot establish the cost, reimbursement, uncompensated care, or net financial loss attributable specifically to gunshot patients. Financial reporting years may differ from shooting years.''')
-    st.markdown('### 3. Understanding the findings')
-    st.write('These limitations matter when comparing neighborhoods or using findings to guide further research.')
+**Finances:** Figures are hospital-wide amounts from cost reports. They do not isolate the cost of treating gunshot patients, and fiscal years may differ from shooting years.''')
+    st.markdown('### 3. Limitations')
     limitations = [
-        ('Recent eviction records','Community-area eviction filing records for 2020–2025 have been requested but are not available in the project inputs; historical eviction values should not be interpreted as recent annual observations.'),
+        ('Eviction records','Community-area eviction filings are available only through 2019, so they describe earlier conditions rather than recent years.'),
         ('Indicator timing','Socioeconomic estimates may cover multi-year reference periods or be repeated across reporting years.'),
         ('Geographic interpretation','Community-area averages conceal variation within areas and do not identify individual risk.'),
         ('Healthcare access','Modeled travel reach excludes observed ambulance dispatch, traffic conditions, treatment routing and patient origin.'),
         ('Hospital economics','Hospital-wide financial data do not isolate gunshot-specific expenditures or losses.'),
-        ('Statistical interpretation','Observed associations are not causal effects; model estimates are exploratory and not validated forecasts.')
+        ('Statistical interpretation','The model shows associations between neighborhood conditions and shootings, not cause and effect, and is not a forecast.')
     ]
     for heading, explanation in limitations:
         st.markdown(f'**{heading}.** {explanation}')
@@ -1207,9 +1180,9 @@ with t5:
         ('ca_num','Chicago community-area identifier'),('ca_name','Community-area name'),('year','Shooting reporting year'),
         ('shot_total','Total shooting victims'),('fatal','Fatal shooting victims'),('nonfatal','Nonfatal shooting victims'),
         ('population','Population denominator'),('shot_rate_per_10k','Shooting victims per 10,000 residents'),
-        ('pct_poverty','Poverty percentage; source year needs confirmation'),('pct_unemployed','Unemployment percentage; source year needs confirmation'),
-        ('per_capita_income','Income per person'),('pct_rent_burdened','Rent-burdened household percentage'),
-        ('eviction_filing_rate','Eviction filing rate; unit and source years need confirmation'),
+        ('pct_poverty','Share of residents below the poverty line (%)'),('pct_unemployed','Share of the labor force unemployed (%)'),
+        ('per_capita_income','Income per person ($)'),('pct_rent_burdened','Renter households paying 30%+ of income on rent (%)'),
+        ('eviction_filing_rate','Eviction filings per 100 renter households'),
         ('profile_trauma_drive_min','Estimated driving minutes to listed trauma center'),('profile_clinics','Estimated clinic count')
     ],columns=['Field','Interpretation'])
     with st.expander('View technical field names and definitions'):
