@@ -462,7 +462,7 @@ with t3:
 
     stroger_lat, stroger_lon = 41.8564, -87.6663  # Approximate map coordinates
     hospital_map = folium.Map(
-        location=[stroger_lat, stroger_lon] if focus_stroger else [41.84, -87.68],
+        location=[41.84, -87.68],
         zoom_start=13 if focus_stroger else 10,
         tiles="OpenStreetMap", control_scale=True
     )
