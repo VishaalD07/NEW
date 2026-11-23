@@ -974,8 +974,8 @@ with t5:
          'https://data.cityofchicago.org/d/gumc-mgzr',
          'Recorded fatal and nonfatal shooting victimizations.'),
         ('Law Center for Better Housing (LCBH)',
-         'Chicago Evictions Data Portal — Release 2 and methodology',
-         'https://eviction.lcbh.org/data/methodology',
+         'Chicago Evictions Data Portal',
+         'https://eviction.lcbh.org/',
          'Historical eviction filings and rates, with Release 2 covering 2010–2019.'),
         ('Chicago Health Atlas', 'Community health and social indicators',
          'https://chicagohealthatlas.org/',
@@ -1019,24 +1019,7 @@ with t5:
         st.markdown('''**Access:** Community profile driving-time estimates and optional 5–30-minute polygons illustrate geographic reach to listed hospitals. They are not ambulance response times, patient transport times, or observed patient catchment areas.
 
 **Finances:** Hospital records show hospital-wide financial indicators. They cannot establish the cost, reimbursement, uncompensated care, or net financial loss attributable specifically to gunshot patients. Financial reporting years may differ from shooting years.''')
-    st.markdown('### 3. Data coverage')
-    st.write('See which indicators are available for the selected year.')
-    with st.expander('View completeness checks and technical details',expanded=False):
-        st.markdown('**Files currently used**')
-        st.code('data/chicago_community_area_year_merged.csv\ndata/trauma_hospitals.csv\ndata/dashboard_map.geojson',language='text')
-        qa_fields=['shot_total','population','shot_rate_per_10k','pct_poverty','pct_unemployed','per_capita_income','profile_trauma_drive_min']
-        available=[field for field in qa_fields if field in current.columns]
-        missing_data=pd.DataFrame({'Measure':available,
-                'Available areas':[int(current[field].notna().sum()) for field in available],
-                'Missing areas':[int(current[field].isna().sum()) for field in available]})
-        st.dataframe(missing_data,hide_index=True,use_container_width=True)
-        st.caption(f'{len(current)} rows in selected year {year}; {D.ca_num.nunique()} unique community area IDs across {D.year.min()}–{D.year.max()}.')
-        dupes=int(D.duplicated(['ca_num','year']).sum())
-        bad_pops=int((D.population<=0).sum()) if 'population' in D else 0
-        st.write(f'Duplicate community-year keys after loading: {dupes}; non-positive population rows: {bad_pops}.')
-
-
-    st.markdown('### 4. Understanding the findings')
+    st.markdown('### 3. Understanding the findings')
     st.write('These limitations matter when comparing neighborhoods or using findings to guide further research.')
     limitations = [
         ('Recent eviction records','Community-area eviction filing records for 2020–2025 have been requested but are not available in the project inputs; historical eviction values should not be interpreted as recent annual observations.'),
@@ -1048,7 +1031,7 @@ with t5:
     ]
     for heading, explanation in limitations:
         st.markdown(f'**{heading}.** {explanation}')
-    st.markdown('### 5. Glossary and downloads')
+    st.markdown('### 4. Glossary and downloads')
     st.write('The data dictionary explains the column names used in the downloadable research files.')
     dictionary = pd.DataFrame([
         ('ca_num','Chicago community-area identifier'),('ca_name','Community-area name'),('year','Shooting reporting year'),
