@@ -231,7 +231,7 @@ with t1:
         vmin=float(v.min()) if len(v) else 0; vmax=float(v.max()) if len(v) else 1
         import branca.colormap as bcm
         cmap=bcm.LinearColormap(['#fff7bc','#fec44f','#f03b20','#800026'],vmin=vmin,vmax=max(vmax,vmin+.01),caption=choice)
-        show_trauma_on_main=st.checkbox('Show listed trauma hospitals on this map',value=True,key='main_trauma_markers')
+        show_trauma_on_main=st.checkbox('Show listed trauma hospitals on this map',value=False,key='main_trauma_markers')
         show_county=st.checkbox('Show Cook County boundary', value=True, key='cook_county_boundary')
         mp=folium.Map(location=[41.84,-87.68],zoom_start=10,tiles='OpenStreetMap',control_scale=True)
         county_geo, county_error = (
