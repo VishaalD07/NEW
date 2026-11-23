@@ -928,7 +928,7 @@ def create_client_pdf(data, all_history, hospitals, reporting_year, community, s
     return out.getvalue()
 
 st.divider()
-st.subheader('Client report & data quality')
+st.subheader('data quality')
 with st.expander('Data source coverage and quality checks',expanded=False):
     st.markdown('**Files currently used**')
     st.code('data/chicago_community_area_year_merged.csv\ndata/trauma_hospitals.csv\ndata/dashboard_map.geojson',language='text')
