@@ -177,6 +177,32 @@ h1,h2,h3 { letter-spacing:-.025em; }
 [data-testid="stSidebar"] label { color:#EDF9FC!important; }
 [data-testid="stSidebar"] [data-testid="stCaptionContainer"] * { color:#C7E8EF!important; }
 [data-testid="stSidebar"] [data-baseweb="select"] { background:var(--secondary-background-color); border-radius:8px; }
+/* Sidebar report panel: fixed contrast independent of Streamlit theme. */
+[data-testid="stSidebar"] [data-testid="stExpander"] details > summary {
+ background:#123C64!important; color:#FFFFFF!important; border-radius:8px;
+}
+[data-testid="stSidebar"] [data-testid="stExpander"] details > summary *,
+[data-testid="stSidebar"] [data-testid="stExpander"] details > summary [data-testid="stMarkdownContainer"] {
+ color:#FFFFFF!important; -webkit-text-fill-color:#FFFFFF!important; opacity:1!important;
+}
+[data-testid="stSidebar"] [data-testid="stButton"] button,
+[data-testid="stSidebar"] [data-testid="stDownloadButton"] button {
+ background:#FFFFFF!important; color:#06264A!important; border:1px solid #8DB8CE!important;
+ font-weight:650!important; opacity:1!important;
+}
+[data-testid="stSidebar"] [data-testid="stButton"] button *,
+[data-testid="stSidebar"] [data-testid="stDownloadButton"] button * {
+ color:#06264A!important; -webkit-text-fill-color:#06264A!important; opacity:1!important;
+}
+[data-testid="stSidebar"] [data-testid="stButton"] button:hover,
+[data-testid="stSidebar"] [data-testid="stDownloadButton"] button:hover {background:#DDF2F6!important;}
+[data-testid="stSidebar"] [data-testid="stButton"] button:focus-visible,
+[data-testid="stSidebar"] [data-testid="stDownloadButton"] button:focus-visible,
+[data-testid="stSidebar"] [data-testid="stExpander"] summary:focus-visible {outline:3px solid #79EAF2!important; outline-offset:2px;}
+[data-testid="stSidebar"] [data-testid="stButton"] button:disabled,
+[data-testid="stSidebar"] [data-testid="stDownloadButton"] button:disabled {background:#CBD5E1!important; opacity:.65!important;}
+[data-testid="stSidebar"] [data-testid="stCaptionContainer"] * {color:#D5EAF4!important;}
+
 .cch-brand-wrap { border-bottom:2px solid rgba(32,181,198,.7); padding:3px 0 15px; margin-bottom:16px; }
 .cch-brand-wrap img { width:100%; max-width:240px; height:auto; border-radius:9px; display:block; }
 .cch-brand-wrap .brand-note { font-size:12px; color:#C7E8EF; margin-top:8px; }
