@@ -239,8 +239,6 @@ with t1:
         if county_error:
             st.info('Cook County boundary temporarily unavailable. The Chicago community map still works. '
                     'You can also place cook_county_boundary.geojson in the data/ folder for offline use.')
-        st.caption('Purple dashed line = Cook County boundary; colored polygons = Chicago community areas with available data. '
-                   'No county-wide shooting estimates are implied.')
         lookup=current.set_index('ca_num')
         def style(feature):
             cid=int(feature['properties']['ca_num']);val=values.get(cid,np.nan)
